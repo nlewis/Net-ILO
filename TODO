@@ -1,0 +1,10 @@
+- document 'Invalid Boolean' error
+- normalize $state_requested
+- test cases
+	- _check_errors()
+	- passing invalid port to ssh_port, http_port, https_port
+	- _serialize
+	- constructor
+	- basic getters/setters
+- include every method in POD SYNOPSIS
+
