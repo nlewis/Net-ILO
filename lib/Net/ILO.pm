@@ -110,12 +110,10 @@ sub del_user {
 
     if (@_) {
 
-        my $arg_ref = shift;
-
         my $username   = $self->username or croak "Username not set";
         my $password   = $self->password or croak "Password not set";
 
-        my $user_login = $arg_ref->{username} or croak 'username required';
+        my $user_login = shift or croak 'username required';
 
         my $ilo_command = qq|
             <?xml version="1.0"?>
@@ -1294,6 +1292,11 @@ sub _serialize {
     # NB: The same status codes are also included in the longest stanza.
     
     my $longest = ( sort {length($b) <=> length($a)} @stanzas )[0];
+
+    if (!$longest) {
+        $self->error('Error parsing response: no data received');
+        return;
+    }
 
     # XML::Simple croaks if it can't parse the data properly.
     # We want to capture any errors and propagate them on our own terms.

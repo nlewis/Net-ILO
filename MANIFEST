@@ -2,7 +2,12 @@ Changes
 MANIFEST
 Makefile.PL
 README
+README.pod
+TODO
 lib/Net/ILO.pm
 t/00-load.t
-t/pod-coverage.t
-t/pod.t
+t/01-new.t
+t/02-check_errors.t
+t/03-serialize.t
+t/04-generate_cmd.t
+t/05-connect.t
