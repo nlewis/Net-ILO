@@ -1,6 +1,6 @@
 Revision history for Net-ILO
 
-0.041   07/21/2010
+0.41   07/21/2010
         - Fixed bug in del_user() so it behaves as documented
         - Fixed bug in _serialize() so it doesn't barf if passed null data
         - Removed POD tests as they were interfering with build environments
@@ -8,6 +8,6 @@ Revision history for Net-ILO
         - Removed .git directory from CPAN distribution (argh!)
         - MANIFEST is now complete
 
-0.040   07/19/2010
+0.40   07/19/2010
         - First release version
 
