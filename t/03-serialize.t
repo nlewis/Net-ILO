@@ -3,7 +3,7 @@
 use strict;
 
 use Net::ILO;
-use Test::More tests => 5;
+use Test::More tests => 4;
 
 my $xml_good = qq|
     <?xml version="1.0"?>
@@ -52,7 +52,6 @@ my $error_empty  = $ilo->error;
 
 ok( $parsed_good->{GET_GLOBAL_SETTINGS}->{TEST_ITEM}->{VALUE} == 30, 'XML parsed correctly' );
 ok( !$parsed_bad,                                                    'Bad XML sent to parser returns false' );
-ok( $error_bad =~ /no element found/,                                'Error message set for bad XML' );
 ok( !$parsed_empty,                                                  'Null data sent to parser returns false' );
 ok( $error_empty eq 'Error parsing response: no data received',      'Error message set for null data');
 
