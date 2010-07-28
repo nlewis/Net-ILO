@@ -36,28 +36,21 @@ sub add_user {
 
         my $arg_ref = shift;
 
-        my $username = $self->username or croak "Username not set";
-        my $password = $self->password or croak "Password not set";
-
         my $user_name     = $arg_ref->{name}     or croak 'name required';
         my $user_login    = $arg_ref->{username} or croak 'username required';
         my $user_password = $arg_ref->{password} or croak 'password required';
 
         my $user_admin    = $arg_ref->{admin} || 'No';
 
-        my $ilo_command = qq|
-            <?xml version="1.0"?>
-            <LOCFG version="2.21">
-            <RIBCL VERSION="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <USER_INFO MODE="write">
-                    <ADD_USER USER_NAME="$user_name" USER_LOGIN="$user_login" PASSWORD="$user_password">
-                    <ADMIN_PRIV value="$user_admin"/>
-                    </ADD_USER>
-                    </USER_INFO>
-                </LOGIN>
-            </RIBCL>|;
+        my $ilo_command   = qq|
+            <USER_INFO MODE="write">
+            <ADD_USER USER_NAME="$user_name" USER_LOGIN="$user_login" PASSWORD="$user_password">
+            <ADMIN_PRIV value="$user_admin"/>
+            </ADD_USER>
+            </USER_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -110,22 +103,15 @@ sub del_user {
 
     if (@_) {
 
-        my $username   = $self->username or croak "Username not set";
-        my $password   = $self->password or croak "Password not set";
-
         my $user_login = shift or croak 'username required';
 
         my $ilo_command = qq|
-            <?xml version="1.0"?>
-            <LOCFG version="2.21">
-            <RIBCL VERSION="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <USER_INFO MODE="write">
-                    <DELETE_USER USER_LOGIN="$user_login"/>
-                    </USER_INFO>
-                </LOGIN>
-            </RIBCL>|;
+            <USER_INFO MODE="write">
+            <DELETE_USER USER_LOGIN="$user_login"/>
+            </USER_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);        
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -262,22 +248,15 @@ sub http_port {
             croak "HTTP port must be an integer between 0 and 65535";
         }
         
-        my $username = $self->username or croak "Username not set";
-        my $password = $self->password or croak "Password not set";
-      
         my $ilo_command = qq|
-            <?xml version="1.0"?>
-            <LOCFG version="2.21">
-            <RIBCL VERSION="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <RIB_INFO MODE="write">
-                    <MOD_GLOBAL_SETTINGS>
-                    <HTTP_PORT value="$http_port"/> 
-                    </MOD_GLOBAL_SETTINGS>
-                    </RIB_INFO>
-                </LOGIN>
-            </RIBCL>|;
+            <RIB_INFO MODE="write">
+            <MOD_GLOBAL_SETTINGS>
+                <HTTP_PORT value="$http_port"/> 
+            </MOD_GLOBAL_SETTINGS>
+            </RIB_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -315,18 +294,14 @@ sub https_port {
         my $password = $self->password or croak "Password not set";
 
         my $ilo_command = qq|
-            <?xml version="1.0"?>
-            <LOCFG version="2.21">
-            <RIBCL VERSION="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <RIB_INFO MODE="write">
-                    <MOD_GLOBAL_SETTINGS>
-                    <HTTPS_PORT value="$https_port"/> 
-                    </MOD_GLOBAL_SETTINGS>
-                    </RIB_INFO>
-                </LOGIN>
-            </RIBCL>|;
+            <RIB_INFO MODE="write">
+            <MOD_GLOBAL_SETTINGS>
+                <HTTPS_PORT value="$https_port"/> 
+            </MOD_GLOBAL_SETTINGS>
+            </RIB_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -439,14 +414,6 @@ sub mod_user {
 
         my $arg_ref = shift;
 
-        # username and password are the login credentials for iLO
-        #
-        # mod_username is the user you want to change the password for
-        # mod_password is the new password
-
-        my $username    = $self->username or croak "username not set";
-        my $password    = $self->password or croak "password not set";
-
         my $mod_username = $arg_ref->{username} || $self->username;
         my $mod_password = $arg_ref->{password} || $self->password;
 
@@ -457,18 +424,14 @@ sub mod_user {
         }
 
         my $ilo_command = qq|
-            <?xml version="1.0"?>   
-            <LOCFG version="2.21">
-            <RIBCL version="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <USER_INFO MODE="write">
-                        <MOD_USER USER_LOGIN="$mod_username">
-                        <PASSWORD value="$mod_password"/>
-                        </MOD_USER>
-                    </USER_INFO>
-                </LOGIN>
-            </RIBCL>|;
+            <USER_INFO MODE="write">
+            <MOD_USER USER_LOGIN="$mod_username">
+                <PASSWORD value="$mod_password"/>
+            </MOD_USER>
+            </USER_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -484,6 +447,12 @@ sub mod_user {
         }
 
     }
+    else {
+
+        croak "mod_user() requires parameters";
+
+    }
+
 
     return 1;
 
@@ -509,23 +478,19 @@ sub network {
         my $gateway     = $arg_ref->{gateway}       || $self->gateway       or croak "gateway not set";
         
         my $ilo_command = qq|
-            <?xml version="1.0"?>   
-            <LOCFG version="2.21">
-            <RIBCL version="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <RIB_INFO MODE="write">
-                    <MOD_NETWORK_SETTINGS>
-                        <DHCP_ENABLE value="$dhcp_enable"/>
-                        <IP_ADDRESS value="$ip_address"/>
-                        <SUBNET_MASK value="$subnet_mask"/>
-                        <GATEWAY_IP_ADDRESS value="$gateway"/>
-                        <DNS_NAME value="$dns_name"/>
-                        <DOMAIN_NAME value="$domain_name"/>
-                    </MOD_NETWORK_SETTINGS>
-                    </RIB_INFO>
-                </LOGIN>
-            </RIBCL>|;
+            <RIB_INFO MODE="write">
+            <MOD_NETWORK_SETTINGS>
+                <DHCP_ENABLE value="$dhcp_enable"/>
+                <IP_ADDRESS value="$ip_address"/>
+                <SUBNET_MASK value="$subnet_mask"/>
+                <GATEWAY_IP_ADDRESS value="$gateway"/>
+                <DNS_NAME value="$dns_name"/>
+                <DOMAIN_NAME value="$domain_name"/>
+            </MOD_NETWORK_SETTINGS>
+            </RIB_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -644,8 +609,8 @@ sub power {
 
     my $ilo_command = $self->_generate_cmd('power_status');
 
-    my $response = $self->_send($ilo_command)   or return;
-    my $xml      = $self->_serialize($response) or return;
+    my $response    = $self->_send($ilo_command)   or return;
+    my $xml         = $self->_serialize($response) or return;
 
     if ( my $errmsg = _check_errors($xml) ) {
         $self->error($errmsg);
@@ -763,22 +728,15 @@ sub ssh_port {
             croak "ssh_port must be an integer between 0 and 65535";
         }
         
-        my $username = $self->username or croak "Username not set";
-        my $password = $self->password or croak "Password not set";
-     
         my $ilo_command = qq|
-            <?xml version="1.0"?>
-            <LOCFG version="2.21">
-            <RIBCL VERSION="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <RIB_INFO MODE="write">
-                    <MOD_GLOBAL_SETTINGS>
-                    <SSH_PORT value="$ssh_port"/> 
-                    </MOD_GLOBAL_SETTINGS>
-                    </RIB_INFO>
-                </LOGIN>
-            </RIBCL>|;
+            <RIB_INFO MODE="write">
+            <MOD_GLOBAL_SETTINGS>
+                <SSH_PORT value="$ssh_port"/> 
+            </MOD_GLOBAL_SETTINGS>
+            </RIB_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -808,22 +766,15 @@ sub ssh_status {
 
         my $ssh_status = shift;
 
-        my $username = $self->username or croak "Username not set";
-        my $password = $self->password or croak "Password not set";
-
         my $ilo_command = qq|
-            <?xml version="1.0"?>
-            <LOCFG version="2.21">
-            <RIBCL VERSION="2.0">
-                <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-                    <RIB_INFO MODE="write">
-                    <MOD_GLOBAL_SETTINGS>
-                    <SSH_STATUS value="$ssh_status"/> 
-                    </MOD_GLOBAL_SETTINGS>
-                    </RIB_INFO>
-                </LOGIN>
-            </RIBCL>|;
+            <RIB_INFO MODE="write">
+            <MOD_GLOBAL_SETTINGS>
+                <SSH_STATUS value="$ssh_status"/> 
+            </MOD_GLOBAL_SETTINGS>
+            </RIB_INFO>
+        |;
 
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -1001,9 +952,6 @@ sub _generate_cmd {
 
     my ($self, $command) = @_;
 
-    my $username = $self->username or croak "Username not set";
-    my $password = $self->password or croak "Password not set";
-
     my %commands = (
     
         'get_network_settings'  => qq( <RIB_INFO MODE="read">
@@ -1060,21 +1008,9 @@ sub _generate_cmd {
 
     );
 
-    my $ilo_header = qq(
-        <?xml version="1.0"?>
-        <LOCFG version="2.21">
-        <RIBCL VERSION="2.0">
-        <LOGIN USER_LOGIN="$username" PASSWORD="$password">
-    );
+    my $ilo_command = $commands{$command} or die "Internal error: command '$command' doesn't exist";
 
-    my $ilo_body = $commands{$command} or die "Internal error: command '$command' doesn't exist";
-
-    my $ilo_footer = qq(
-        </LOGIN>
-        </RIBCL>
-    );
-
-    my $ilo_command = $ilo_header . $ilo_body . $ilo_footer;
+    $ilo_command = $self->_wrap($ilo_command);
 
     return $ilo_command;
 
@@ -1321,15 +1257,39 @@ sub _serialize {
 }
 
 
+sub _wrap {
+
+    my $self = shift;
+
+    my $body = shift or die "Internal error: no data passed to _wrap()";
+
+    my $username = $self->username or croak "Username not set";
+    my $password = $self->password or croak "Password not set";
+
+    my $header = qq|
+        <?xml version="1.0"?>
+        <LOCFG version="2.21">
+        <RIBCL VERSION="2.0">
+        <LOGIN USER_LOGIN="$username" PASSWORD="$password">
+    |;
+
+    my $footer = qq|
+        </LOGIN>
+        </RIBCL>
+    |;
+    
+    return $header . $body . $footer;
+
+}
+
+
 sub DESTROY {
     
     my $self = shift;
     
-    if ( $self->{_client} ) {
-        my $client = $self->{_client} or return;
-        $client->close;
-    }
-    
+    my $client = $self->{_client} or return;
+    $client->close;
+        
     return;
 }
 
@@ -1533,12 +1493,12 @@ to this method will attempt to change the power state:
     # something like 340
     print $ilo->power_consumption;
 
-    Returns the current power consumption in watts.
+Returns the current power consumption in watts.
 
-    This method is only available on G5 and newer models. Calling it on an
-    older machine will cause the following error to be returned:
+This method is only available on G5 and newer models. Calling it on an
+older machine will cause the following error to be returned:
 
-    Method not supported by this iLO version
+Method not supported by this iLO version
 
 =back
 
@@ -1587,7 +1547,7 @@ network().
     # network dependent, something like 255.255.255.0
     print $ilo->subnet_mask;
 
-    Returns the subnet mask of the iLO processor.
+Returns the subnet mask of the iLO processor.
 
 =item gateway()
 
@@ -1652,7 +1612,7 @@ Returns the model name of the machine.
     # unique to your machine
     print $ilo->serialID;
 
-    Returns the serial number of the remote machine.
+Returns the serial number of the remote machine.
 
 =item cpus()
 
