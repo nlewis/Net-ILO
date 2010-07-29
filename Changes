@@ -1,5 +1,8 @@
 Revision history for Net-ILO
 
+0.44   07/28/2010
+        - bump $VERSION
+
 0.43   07/28/2010
         - moved XML header and footer generation to its own function [wrap()]
         - added new methods for gathering server health:
