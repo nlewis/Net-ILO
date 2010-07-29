@@ -1,3 +1,4 @@
+
 =head1 NAME
 
 Net::ILO - Interface to HP Integrated Lights-Out
@@ -195,12 +196,12 @@ to this method will attempt to change the power state:
     # something like 340
     print $ilo->power_consumption;
 
-    Returns the current power consumption in watts.
+Returns the current power consumption in watts.
 
-    This method is only available on G5 and newer models. Calling it on an
-    older machine will cause the following error to be returned:
+This method is only available on G5 and newer models. Calling it on an
+older machine will cause the following error to be returned:
 
-    Method not supported by this iLO version
+Method not supported by this iLO version
 
 =back
 
@@ -249,7 +250,7 @@ network().
     # network dependent, something like 255.255.255.0
     print $ilo->subnet_mask;
 
-    Returns the subnet mask of the iLO processor.
+Returns the subnet mask of the iLO processor.
 
 =item gateway()
 
@@ -314,7 +315,7 @@ Returns the model name of the machine.
     # unique to your machine
     print $ilo->serialID;
 
-    Returns the serial number of the remote machine.
+Returns the serial number of the remote machine.
 
 =item cpus()
 
@@ -422,6 +423,112 @@ This method is not supported by pre-generation 4 hardware.
     print $ilo->biosdate;
 
 Returns the release date of the system's BIOS.
+
+=back
+
+=head2 SERVER HEALTH
+
+=over
+
+=item fans()
+
+    my $fans = $ilo->fans;
+
+    foreach my $fan (@$fans) {
+
+        print "    Name: ", $fan->{name},     "\n";
+        print "Location: ", $fan->{location}, "\n";
+        print "   Speed: ", $fan->{speed},    "\n";
+        print "    Unit: ", $fan->{unit},     "\n";
+        print "  Status: ", $fan->{status},   "\n\n";
+
+    }
+
+    #     Name: Fan Block 1
+    # Location: Power Supply
+    #    Speed: 34
+    #     Unit: Percentage
+    #   Status: Ok
+    #
+    #     Name: Fan Block 2
+    # Location: CPU 2
+    #    Speed: 29
+    #     Unit: Percentage
+    #   Status: Ok
+    #
+    #     Name: Fan Block 3
+    # Location: CPU 1
+    #    Speed: 34
+    #     Unit: Percentage
+    #   Status: Ok
+
+Returns arrayref containing the status of the fan block(s) installed in the 
+system. 'status' will be 'Ok' or 'Failed'. 
+
+=item temperatures()
+
+    my $temperatures = $ilo->temperatures;
+
+    foreach my $sensor (@$temperatures) {
+
+        print "    Name: ", $sensor->{name},     "\n";
+        print "Location: ", $sensor->{location}, "\n";
+        print "   Value: ", $sensor->{value},    "\n";
+        print "    Unit: ", $sensor->{unit},     "\n";
+        print "  Status: ", $sensor->{status},   "\n\n";
+
+    }
+
+    #     Name: Temp 1
+    # Location: I/O Board
+    #    Value: 49
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 2
+    # Location: Ambient
+    #    Value: 19
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 3
+    # Location: CPU 1
+    #    Value: 32
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 4
+    # Location: CPU 1
+    #    Value: 32
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 5
+    # Location: Power Supply
+    #    Value: 28
+    #     Unit: Celsius
+    #   Status: Ok
+
+Returns arrayref containing the status of the temperature sensor(s) installed
+in the system. 'status' will be 'Failed' if the temperature exceeds the
+critical threshold.
+
+=item power_supplies()
+
+    my $power_supplies = $ilo->power_supplies;
+
+    foreach my $power_supply (@$power_supplies) {
+
+        print "  Name: ", $power_supply->{name},   "\n";
+        print "Status: ", $power_supply->{status}, "\n\n";
+
+    }
+
+    #   Name: Power Supply 1
+    # Status: Ok
+
+Returns arrayref containing the status of the power supplies installed in the
+system. 'status' will be 'Ok' or 'Failed'. 
 
 =back
 
@@ -712,3 +819,4 @@ under the same terms as Perl itself.
 
 
 =cut
+

@@ -6,10 +6,10 @@ use Net::ILO;
 use Test::More;
 
 my @commands = qw(
-    get_global_settings     get_host_data   get_network_settings
-    power_consumption       power_on        power_off
-    reset                   uid_on          uid_off
-    uid_status              version
+    get_embedded_health     get_global_settings     get_host_data   
+    get_network_settings    power_consumption       power_on        
+    power_off               reset                   uid_on          
+    uid_off                 uid_status              version
 );    
 
 plan tests => scalar @commands * 2 + 1;

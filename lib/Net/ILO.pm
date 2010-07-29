@@ -171,6 +171,19 @@ sub error {
 }
 
 
+sub fans {
+
+    my $self = shift;
+
+    if (!$self->{fans}) {
+        $self->_populate_embedded_health or return;
+    }
+
+    return $self->{fans};
+
+}
+
+
 sub fw_date {
 
     my $self = shift;
@@ -658,6 +671,19 @@ sub power_consumption {
 }
 
 
+sub power_supplies {
+
+    my $self = shift;
+
+    if (!$self->{power_supplies}) {
+        $self->_populate_embedded_health or return;
+    }
+
+    return $self->{power_supplies};
+
+}
+
+
 sub ramslots {
 
     my $self = shift;
@@ -809,6 +835,19 @@ sub subnet_mask {
 }
 
 
+sub temperatures {
+
+    my $self = shift;
+
+    if (!$self->{temperatures}) {
+        $self->_populate_embedded_health or return;
+    }
+
+    return $self->{temperatures};
+
+}
+
+
 sub uid {
 
     my $self = shift;
@@ -953,25 +992,33 @@ sub _generate_cmd {
     my ($self, $command) = @_;
 
     my %commands = (
-    
-        'get_network_settings'  => qq( <RIB_INFO MODE="read">
-                                       <GET_NETWORK_SETTINGS/>
+   
+        'get_embedded_health'   => qq( <SERVER_INFO MODE="read">
+                                       <GET_EMBEDDED_HEALTH/>
+                                       </SERVER_INFO> ),
+ 
+        'get_global_settings'   => qq( <RIB_INFO MODE="read">
+                                       <GET_GLOBAL_SETTINGS/>
                                        </RIB_INFO> ),
-        
+
         'get_host_data'         => qq( <SERVER_INFO MODE="read">
                                        <GET_HOST_DATA/>
                                        </SERVER_INFO> ),
         
-        'reset'                 => qq( <RIB_INFO MODE="write">
-                                       <RESET_RIB/>
+        'get_network_settings'  => qq( <RIB_INFO MODE="read">
+                                       <GET_NETWORK_SETTINGS/>
                                        </RIB_INFO> ),
-
-        'power_on'              => qq( <SERVER_INFO MODE="write">
-                                       <SET_HOST_POWER HOST_POWER="Yes"/>
+        
+        'power_consumption'     => qq( <SERVER_INFO MODE="read">
+                                       <GET_POWER_READINGS/>
                                        </SERVER_INFO> ),
 
         'power_off'             => qq( <SERVER_INFO MODE="write">
                                        <SET_HOST_POWER HOST_POWER="No"/>
+                                       </SERVER_INFO> ),
+
+        'power_on'              => qq( <SERVER_INFO MODE="write">
+                                       <SET_HOST_POWER HOST_POWER="Yes"/>
                                        </SERVER_INFO> ),
 
         'power_reset'           => qq( <SERVER_INFO MODE="write">
@@ -982,12 +1029,16 @@ sub _generate_cmd {
                                        <GET_HOST_POWER_STATUS/>
                                        </SERVER_INFO> ),
 
-        'uid_on'                => qq( <SERVER_INFO MODE="write">
-                                       <UID_CONTROL UID="Yes"/>
-                                       </SERVER_INFO> ),
+        'reset'                 => qq( <RIB_INFO MODE="write">
+                                       <RESET_RIB/>
+                                       </RIB_INFO> ),
 
         'uid_off'               => qq( <SERVER_INFO MODE="write">
                                        <UID_CONTROL UID="No"/>
+                                       </SERVER_INFO> ),
+
+        'uid_on'                => qq( <SERVER_INFO MODE="write">
+                                       <UID_CONTROL UID="Yes"/>
                                        </SERVER_INFO> ),
 
         'uid_status'            => qq( <SERVER_INFO MODE="read">
@@ -998,14 +1049,6 @@ sub _generate_cmd {
                                        <GET_FW_VERSION/>
                                        </RIB_INFO> ),
 
-        'get_global_settings'   => qq( <RIB_INFO MODE="read">
-                                       <GET_GLOBAL_SETTINGS/>
-                                       </RIB_INFO> ),
-
-        'power_consumption'     => qq( <SERVER_INFO MODE="read">
-                                       <GET_POWER_READINGS/>
-                                       </SERVER_INFO> ),
-
     );
 
     my $ilo_command = $commands{$command} or die "Internal error: command '$command' doesn't exist";
@@ -1013,6 +1056,83 @@ sub _generate_cmd {
     $ilo_command = $self->_wrap($ilo_command);
 
     return $ilo_command;
+
+}
+
+
+sub _populate_embedded_health { 
+
+    my $self = shift;
+
+    my $ilo_command = $self->_generate_cmd('get_embedded_health');
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+    my $fans            = $xml->{GET_EMBEDDED_HEALTH_DATA}->{FANS}->{FAN};
+    my $power_supplies  = $xml->{GET_EMBEDDED_HEALTH_DATA}->{POWER_SUPPLIES}->{SUPPLY};
+    my $temperatures    = $xml->{GET_EMBEDDED_HEALTH_DATA}->{TEMPERATURE}->{TEMP};
+
+    foreach my $fan (@$fans) {
+
+        my $location = $fan->{ZONE}->{VALUE};
+        my $name     = $fan->{LABEL}->{VALUE};
+        my $speed    = $fan->{SPEED}->{VALUE};
+        my $status   = $fan->{STATUS}->{VALUE};
+        my $unit     = $fan->{SPEED}->{UNIT};
+
+        next unless $speed && $speed =~ /^\d+$/;
+
+        push( @{$self->{fans}}, {
+            'location'  => $location,
+            'name'      => $name,
+            'speed'     => $speed,
+            'status'    => $status,
+            'unit'      => $unit,
+        });
+
+    }
+
+    foreach my $power_supply (@$power_supplies) {
+
+        my $name     = $power_supply->{LABEL}->{VALUE};
+        my $status   = $power_supply->{STATUS}->{VALUE};
+
+        next if $status eq 'Not Installed';
+
+        push( @{$self->{power_supplies}}, {
+            'name'   => $name,
+            'status' => $status,
+        });
+
+    }
+
+    foreach my $temperature (@$temperatures) {
+
+        my $location = $temperature->{LOCATION}->{VALUE};
+        my $name     = $temperature->{LABEL}->{VALUE};
+        my $status   = $temperature->{STATUS}->{VALUE};
+        my $value    = $temperature->{CURRENTREADING}->{VALUE};
+        my $unit     = $temperature->{CURRENTREADING}->{UNIT};
+
+        next unless $value && $value =~ /^\d+$/;
+
+        push( @{$self->{temperatures}}, {
+            'location'  => $location,
+            'name'      => $name,
+            'status'    => $status,
+            'value'     => $value,
+            'unit'      => $unit,
+        }); 
+
+    }
+
+    return 1;
 
 }
 
@@ -1064,23 +1184,6 @@ sub _populate_global_settings {
     }
    
     return 1;
-
-}
-
-
-sub _populate_embedded_health {
-
-    my $self = shift;
-
-    my $ilo_command = $self->_generate_cmd('get_embedded_health');
-
-    my $response    = $self->_send($ilo_command)    or return;
-    my $xml         = $self->_serialize($response)  or return;
-
-    if ( my $errmsg = _check_errors($xml) ) {
-        $self->error($errmsg);
-        return;
-    }
 
 }
 
@@ -1737,6 +1840,112 @@ This method is not supported by pre-generation 4 hardware.
     print $ilo->biosdate;
 
 Returns the release date of the system's BIOS.
+
+=back
+
+=head2 SERVER HEALTH
+
+=over
+
+=item fans()
+
+    my $fans = $ilo->fans;
+
+    foreach my $fan (@$fans) {
+
+        print "    Name: ", $fan->{name},     "\n";
+        print "Location: ", $fan->{location}, "\n";
+        print "   Speed: ", $fan->{speed},    "\n";
+        print "    Unit: ", $fan->{unit},     "\n";
+        print "  Status: ", $fan->{status},   "\n\n";
+
+    }
+
+    #     Name: Fan Block 1
+    # Location: Power Supply
+    #    Speed: 34
+    #     Unit: Percentage
+    #   Status: Ok
+    #
+    #     Name: Fan Block 2
+    # Location: CPU 2
+    #    Speed: 29
+    #     Unit: Percentage
+    #   Status: Ok
+    #
+    #     Name: Fan Block 3
+    # Location: CPU 1
+    #    Speed: 34
+    #     Unit: Percentage
+    #   Status: Ok
+
+Returns arrayref containing the status of the fan block(s) installed in the 
+system. 'status' will be 'Ok' or 'Failed'. 
+
+=item temperatures()
+
+    my $temperatures = $ilo->temperatures;
+
+    foreach my $sensor (@$temperatures) {
+
+        print "    Name: ", $sensor->{name},     "\n";
+        print "Location: ", $sensor->{location}, "\n";
+        print "   Value: ", $sensor->{value},    "\n";
+        print "    Unit: ", $sensor->{unit},     "\n";
+        print "  Status: ", $sensor->{status},   "\n\n";
+
+    }
+
+    #     Name: Temp 1
+    # Location: I/O Board
+    #    Value: 49
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 2
+    # Location: Ambient
+    #    Value: 19
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 3
+    # Location: CPU 1
+    #    Value: 32
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 4
+    # Location: CPU 1
+    #    Value: 32
+    #     Unit: Celsius
+    #   Status: Ok
+    #
+    #     Name: Temp 5
+    # Location: Power Supply
+    #    Value: 28
+    #     Unit: Celsius
+    #   Status: Ok
+
+Returns arrayref containing the status of the temperature sensor(s) installed
+in the system. 'status' will be 'Failed' if the temperature exceeds the
+critical threshold.
+
+=item power_supplies()
+
+    my $power_supplies = $ilo->power_supplies;
+
+    foreach my $power_supply (@$power_supplies) {
+
+        print "  Name: ", $power_supply->{name},   "\n";
+        print "Status: ", $power_supply->{status}, "\n\n";
+
+    }
+
+    #   Name: Power Supply 1
+    # Status: Ok
+
+Returns arrayref containing the status of the power supplies installed in the
+system. 'status' will be 'Ok' or 'Failed'. 
 
 =back
 
