@@ -91,10 +91,10 @@ later using their associated methods if you want.
    
 Optional parameters:
  
- address - hostname or IP of remote machine's iLO
-    port - default is 443, you may specify another port here
-username - username for logging in to iLO
-password - password for logging in to iLO
+    address - hostname or IP of remote machine's iLO
+       port - default is 443, you may specify another port here
+   username - username for logging in to iLO
+   password - password for logging in to iLO
 
 =item address()
     
