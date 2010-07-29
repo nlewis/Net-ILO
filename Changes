@@ -1,5 +1,8 @@
 Revision history for Net-ILO
 
+0.43   07/28/2010
+        - moved XML header and footer generation to its own function
+
 0.42   07/26/2010
         - Removed bad test from t/03-serialize.t
 

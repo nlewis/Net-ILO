@@ -1068,6 +1068,23 @@ sub _populate_global_settings {
 }
 
 
+sub _populate_embedded_health {
+
+    my $self = shift;
+
+    my $ilo_command = $self->_generate_cmd('get_embedded_health');
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+}
+
+
 sub _populate_host_data {
 
     my $self = shift;
