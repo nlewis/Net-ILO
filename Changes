@@ -1,5 +1,17 @@
 Revision history for Net-ILO
 
+0.51   08/16/2010
+        - if mac01 is set and mac03/04 aren't, calling mac04 or mac04 returns immediately rather than sending iLO request
+        - renamed fw_version to get_fw_version for consistency
+        - fixed bug in get_fw_version() where error condition wasn't propagated
+        - fixed test in t/04-generate_cmd to work with iLO 3 changes
+
+0.50   08/13/2010
+        - BETA support for iLO 3
+        - added methods for mac03 and mac04
+        - _populate_host_data no longer depends on the order of data returned
+        - _send formats XML nicely, without leading / trailing spaces
+
 0.43   07/28/2010
         - moved XML header and footer generation to its own function [wrap()]
         - added new methods for gathering server health:

@@ -6,10 +6,10 @@ use Net::ILO;
 use Test::More;
 
 my @commands = qw(
-    get_embedded_health     get_global_settings     get_host_data   
-    get_network_settings    power_consumption       power_on        
-    power_off               reset                   uid_on          
-    uid_off                 uid_status              version
+    get_embedded_health     get_global_settings     get_fw_version
+    get_host_data           get_network_settings    power_consumption       
+    power_on                power_off               reset
+    uid_on                  uid_off                 uid_status
 );    
 
 plan tests => scalar @commands * 2 + 1;
@@ -19,6 +19,7 @@ plan tests => scalar @commands * 2 + 1;
 my $ilo = Net::ILO->new({
     username => 'test',
     password => 'test',
+    version  => 2,
 });
 
 foreach my $command (@commands) {

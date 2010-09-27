@@ -43,12 +43,15 @@ been successfully tested with the following server types:
     DL360/G4p
     DL360/G5
     DL360/G6
+    DL360/G7 ** see note below
     DL380/G3
     DL380/G4
     DL380/G5
 
 It should work with other server models; feedback (either way) is much 
 appreciated.
+
+Note: iLO 3 support is in BETA, and still being tested.
 
 =head1 INTERFACE QUIRKS
 
@@ -91,10 +94,14 @@ later using their associated methods if you want.
    
 Optional parameters:
  
-    address - hostname or IP of remote machine's iLO
-       port - default is 443, you may specify another port here
-   username - username for logging in to iLO
-   password - password for logging in to iLO
+  address - hostname or IP of remote machine's iLO
+     port - default is 443, you may specify another port here
+ username - username for logging in to iLO
+ password - password for logging in to iLO
+  version - version of iLO API to use, '1', '2' or '3'. versions 1 and 2 are
+            the same and correspond to iLO and iLO 2 respectively, if version
+            '3' is used the module will use the new iLO 3 interface. if not
+            specified the version will be detected automatically.
 
 =item address()
     
@@ -170,7 +177,7 @@ succeeded. Error checking has been omitted from most examples for brevity.
 
 =item power()
 
-    my $power_status = $ilo->power or die $ilo->error;
+    my $power_status = $ilo->power;
 
     if ($power_status eq 'off') {
 
@@ -198,7 +205,7 @@ to this method will attempt to change the power state:
 
 Returns the current power consumption in watts.
 
-This method is only available on G5 and newer models. Calling it on an
+This method is only available when using iLO 2 and above. Calling it on an
 older machine will cause the following error to be returned:
 
 Method not supported by this iLO version
@@ -409,6 +416,22 @@ Returns the mac address associated with the machine's secondary NIC (aka eth1).
     
 This method is not supported by pre-generation 4 hardware.
 
+=item mac03()
+
+    my $eth2_mac = $ilo->mac03;
+
+Returns the mac address associated with the machine's tertiary NIC, if
+installed. Note that mac addresses for add-on cards will not be available
+via this method.
+
+=item mac04()
+
+    my $eth3_mac = $ilo->mac04;
+
+Returns the mac address associated with the machine's quaternary NIC, if
+installed. Note that mac addresses for add-on cards will not be available
+via this method.
+
 =item macilo()
 
     my $ilo_mac = $ilo->macilo;
@@ -545,11 +568,11 @@ Resets the iLO management processor.
 
 =item fw_type()
 
-    # either 'iLO' or 'iLO2'
+    # either 'iLO', 'iLO2' or 'iLO3'
     print $ilo->fw_type;
 
 Returns the type of iLO management processor in the remote machine.
-As far as I know, possible values are 'iLO' and 'iLO2', depending on
+Possible values are 'iLO', 'iLO2' and 'iLO3', depending on
 how modern the server is.
 
 =item fw_version()

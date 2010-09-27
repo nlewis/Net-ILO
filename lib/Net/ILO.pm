@@ -9,7 +9,7 @@ use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
 
-our $VERSION = '0.43';
+our $VERSION = '0.51';
 
 
 my $METHOD_UNSUPPORTED = 'Method not supported by this iLO version';
@@ -103,7 +103,7 @@ sub del_user {
 
     if (@_) {
 
-        my $user_login = shift or croak 'username required';
+        my $user_login = shift;
 
         my $ilo_command = qq|
             <USER_INFO MODE="write">
@@ -387,6 +387,49 @@ sub mac02 {
 }
 
 
+sub mac03 {
+
+    my $self = shift;
+
+    # if mac01 is defined but mac03 isn't we aren't going to get it
+    # this time around either
+
+    if (!$self->{mac03} && !$self->{mac01}) {
+        $self->_populate_host_data or return;
+    }
+
+    if ($self->{mac03}) {
+        return $self->{mac03};
+    }
+    else {
+        $self->error($METHOD_UNSUPPORTED);
+        return;
+    }
+
+}
+
+
+sub mac04 {
+
+    my $self = shift;
+
+    # see above
+
+    if (!$self->{mac04} && !$self->{mac01}) {
+        $self->_populate_host_data or return;
+    }
+
+    if ($self->{mac04}) {
+        return $self->{mac04};
+    }
+    else {
+        $self->error($METHOD_UNSUPPORTED);
+        return;
+    }
+
+}
+
+
 sub macilo {
     
     my $self = shift;
@@ -542,9 +585,11 @@ sub new {
     $self->address(  $options->{address}  );
     $self->username( $options->{username} );
     $self->password( $options->{password} );
-    
-    $self->{port}   = $options->{port}  || '443';
-    $self->{_debug} = $options->{debug} || '0';
+
+    # iLO version will be autodetected later if not specified
+    $self->{_version} = $options->{version} || undef; 
+    $self->{port}     = $options->{port}    || '443';
+    $self->{_debug}   = $options->{debug}   || '0';
     
     return $self;
     
@@ -972,6 +1017,34 @@ sub _debug {
 }
 
 
+sub _detect_version {
+
+    my $self = shift;
+
+    # iLO 3 has a slightly different interface; it requires that
+    # you preface commands with an HTTP header
+
+    my $ilo_command = qq(
+        POST /ribcl HTTP/1.1
+        HOST: localhost
+        Content-length: 30
+        Connection: Close
+
+        <RIBCL VERSION="2.0"></RIBCL>
+    );
+
+    my $response = $self->_send($ilo_command) or return;
+
+    if ($response =~ /^HTTP\/1.1 200 OK/) {
+        return 3;
+    }
+    else {
+        return 2;
+    }
+
+}
+    
+
 sub _disconnect {
 
     my $self = shift;
@@ -997,6 +1070,10 @@ sub _generate_cmd {
                                        <GET_EMBEDDED_HEALTH/>
                                        </SERVER_INFO> ),
  
+        'get_fw_version'        => qq( <RIB_INFO MODE="read">
+                                       <GET_FW_VERSION/>
+                                       </RIB_INFO> ),
+
         'get_global_settings'   => qq( <RIB_INFO MODE="read">
                                        <GET_GLOBAL_SETTINGS/>
                                        </RIB_INFO> ),
@@ -1045,10 +1122,6 @@ sub _generate_cmd {
                                        <GET_UID_STATUS/>
                                        </SERVER_INFO> ),
 
-        'version'               => qq( <RIB_INFO MODE="read">
-                                       <GET_FW_VERSION/>
-                                       </RIB_INFO> ),
-
     );
 
     my $ilo_command = $commands{$command} or die "Internal error: command '$command' doesn't exist";
@@ -1056,6 +1129,31 @@ sub _generate_cmd {
     $ilo_command = $self->_wrap($ilo_command);
 
     return $ilo_command;
+
+}
+
+
+sub _length {
+
+    # for iLO 3 we need to know the length of the XML for the 
+    # Content-length field in the http header
+
+    my ($self, $ilo_command) = @_;
+
+    # each line has \r\n appended when sending, so + 2
+
+    my $length = 0;
+
+    foreach my $line (split(/\n/, $ilo_command)) {
+
+        $line =~ s/^\s+//;
+        $line =~ s/\s+$//;
+
+        $length += length($line) + 2;
+
+    }
+
+    return $length;
 
 }
 
@@ -1141,10 +1239,10 @@ sub _populate_fw_version {
 
     my $self = shift;
 
-    my $ilo_command = $self->_generate_cmd('version');
+    my $ilo_command = $self->_generate_cmd('get_fw_version');
 
-    my $response    = $self->_send($ilo_command);
-    my $xml         = $self->_serialize($response);
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
 
     if ( my $errmsg = _check_errors($xml) ) {
         $self->error($errmsg);
@@ -1202,65 +1300,164 @@ sub _populate_host_data {
         return;
     }
 
-    # Dear Maintainer: sorry
-    # Walk the XML, grabbing what we need
+    # SMBIOS data is stored in a big fat array
+    #
+    # data is not guaranteed to be in any particular location, so we have to
+    # iterate through all the data looking for certain fields.
+    #
+    # thankfully, SMBIOS *types* are standard (eg. CPU data is type 4)
+    # so we have a starting point 
+    #
+    # this really sucks but I don't know of a better way
 
-    for my $fieldnum ( 0 .. scalar @{$xml->{GET_HOST_DATA}->{SMBIOS_RECORD}} ) {
+    for my $fieldnum (0 .. scalar @{$xml->{GET_HOST_DATA}->{SMBIOS_RECORD}}) {
 
         my $smbios_data = $xml->{GET_HOST_DATA}->{SMBIOS_RECORD}[$fieldnum]->{FIELD};
-        my $smbios_name = $smbios_data->[0]->{VALUE};
+        my $smbios_type = $xml->{GET_HOST_DATA}->{SMBIOS_RECORD}[$fieldnum]->{TYPE};
 
-        next unless $smbios_name;
+        next unless defined $smbios_type;
 
-        if ($smbios_name eq 'BIOS Information') {
-            $self->{biosdate}  = $smbios_data->[2]->{VALUE};
+        if ($smbios_type == 0) {
+
+            for my $entry (0 .. scalar @$smbios_data) {
+
+                my $field_name  = $smbios_data->[$entry]->{NAME};
+                my $field_value = $smbios_data->[$entry]->{VALUE};
+
+                next unless $field_name && $field_value;
+
+                if ($field_name eq 'Date') {
+                    $self->{biosdate} = $field_value;
+                }
+
+            }
+
         }
-        elsif ($smbios_name eq 'System Information') {
-            $self->{model}      = $smbios_data->[1]->{VALUE};
-            $self->{serialID}   = $smbios_data->[2]->{VALUE};
-            $self->{UUID}       = $smbios_data->[3]->{VALUE};
-        }
-        elsif ($smbios_name eq 'Embedded NIC MAC Assignment') {
-            $self->{mac01}      = $smbios_data->[2]->{VALUE};
-            $self->{mac02}      = $smbios_data->[4]->{VALUE};
-            $self->{macilo}     = $smbios_data->[6]->{VALUE};
-        }
-        elsif ($smbios_name eq 'Processor Information') {
+        elsif ($smbios_type == 1) {
 
-            my $name            = $smbios_data->[1]->{VALUE};
-            my $speed           = $smbios_data->[2]->{VALUE};
+            for my $entry (0 .. scalar @$smbios_data) {
 
-            # Otherwise slot is empty
-            next unless $speed =~ /^\d/;
+                my $field_name  = $smbios_data->[$entry]->{NAME};
+                my $field_value = $smbios_data->[$entry]->{VALUE};
 
-            my $cores           = $smbios_data->[3]->{VALUE} || 'single core'; 
+                next unless $field_name && $field_value;
+
+                if ($field_name eq 'Product Name') {
+                    $self->{model}      = $field_value;
+                }
+                elsif ($field_name eq 'Serial Number') {
+                    $self->{serialID}   = $field_value;
+                }
+                elsif ($field_name eq 'UUID') {
+                    $self->{UUID}       = $field_value;
+                } 
+       
+            }
+
+        } 
+        elsif ($smbios_type == 4) {
+
+            my ($name, $speed, $cores);
+            
+            for my $entry (0 .. scalar @$smbios_data) {
+
+                my $field_name  = $smbios_data->[$entry]->{NAME};
+                my $field_value = $smbios_data->[$entry]->{VALUE};
+
+                next unless $field_name && $field_value;
+
+                if ($field_name eq 'Label') {
+                    $name  = $field_value;
+                }
+                elsif ($field_name eq 'Speed') {
+                    $speed = $field_value;
+                }
+                elsif ($field_name eq 'Execution Technology') {
+                    $cores = $field_value || 'single core';
+                }
+
+            }
+
+            # otherwise slot is empty
+            next unless $speed && $speed =~ /^[1-9]/;
 
             push( @{$self->{cpus}}, { 
-                'name'  => $name, 
+                'name'  => $name,
                 'speed' => $speed,
-                'cores' => $cores } 
+                'cores' => $cores }
             );
-
 
         }
-        elsif ($smbios_name eq 'Memory Device') {
+        elsif ($smbios_type == 17) {
 
-            my $location      = $smbios_data->[1]->{VALUE};
-            my $size          = $smbios_data->[2]->{VALUE};
-            my $speed         = $smbios_data->[3]->{VALUE};
+            my ($location, $size, $speed);
+            
+            for my $entry (0 .. scalar @$smbios_data) {
 
-            push( @{$self->{ramslots}}, { 
+                my $field_name  = $smbios_data->[$entry]->{NAME};
+                my $field_value = $smbios_data->[$entry]->{VALUE};
+
+                next unless $field_name && $field_value;
+
+                if ($field_name eq 'Label') {
+                    $location = $field_value;
+                }
+                elsif ($field_name eq 'Size') {
+                    $size     = $field_value;
+                }
+                elsif ($field_name eq 'Speed') {
+                    $speed    = $field_value;
+                }
+
+            }
+
+            push( @{$self->{ramslots}}, {
                 'location'  => $location,
                 'size'      => $size,
-                'speed'     => $speed } 
+                'speed'     => $speed }
             );
-        
+
+        }
+        elsif ($smbios_type == 209) {
+
+            for my $entry (0 .. scalar @$smbios_data) {
+
+                my $field_name  = $smbios_data->[$entry]->{NAME};
+                my $field_value = $smbios_data->[$entry]->{VALUE};
+
+                next unless $field_name && $field_value;
+                next unless $field_name eq 'Port';
+
+                # MAC address is offset by one from port label
+
+                my $current_mac = $smbios_data->[$entry + 1]->{VALUE};
+
+                if ($field_value eq '1') {
+                    $self->{mac01} = $current_mac;
+                }
+                elsif ($field_value eq '2') {
+                    $self->{mac02} = $current_mac;
+                }
+                elsif ($field_value eq '3') {
+                    $self->{mac03} = $current_mac;
+                }
+                elsif ($field_value eq '4') {
+                    $self->{mac04} = $current_mac;
+                }
+                elsif ($field_value eq 'iLO') {
+                    $self->{macilo} = $current_mac;
+                }
+
+            }
+
         }
 
     }
     
     ($self->{mac01}  = lc($self->{mac01}))  =~ tr/-/:/;
     ($self->{mac02}  = lc($self->{mac02}))  =~ tr/-/:/;
+    ($self->{mac03}  = lc($self->{mac03}))  =~ tr/-/:/;
+    ($self->{mac04}  = lc($self->{mac04}))  =~ tr/-/:/;
     ($self->{macilo} = lc($self->{macilo})) =~ tr/-/:/;
 
     return 1;
@@ -1303,11 +1500,14 @@ sub _send {
 
     my $client = $self->_connect or return;
 
-    if ($self->_debug > 0) {
-        print $ilo_command;
-    }
-
     foreach my $line ( split(/\n/, $ilo_command) ) {
+
+        $line =~ s/^\s+//;
+        $line =~ s/\s+$//;
+
+        if ($self->_debug > 0) {
+            print "'$line'\n";
+        }
         
         my $ok = print {$client} $line, "\r\n";
 
@@ -1317,14 +1517,24 @@ sub _send {
         }
         
     }
-    
+
     chomp( my $response = join('', <$client>) );
+
+    # iLO 3 returns a chunked http response
+    # rather than parse it, just filter out the chunking data
+    # janky, but a lightweight solution which works for all iLO versions
+    
+    $response =~ s/[\r\n]+[0-9a-f]{3}[\r\n]+//gs;
 
     $self->_disconnect or die "Internal error: disconnect failed, wtf!";
     
     if (!$response) {
         $self->error("No response received from remote machine");
         return;
+    }
+
+    if ($self->_debug > 0) {
+        print Dumper $response;
     }
 
     return $response;
@@ -1336,10 +1546,16 @@ sub _serialize {
 
     my ($self, $data) = @_;
 
-    # ILO returns multiple XML stanzas, all starting with a standard header.
-    # We first need to break this glob of data into individual XML components.
+    if (!$data) {
+        $self->error('Error parsing response: no data received');
+        return;
+    }
 
-    chomp( my @stanzas = split(/<\?xml.*?\?>/, $data) );
+    # iLO returns multiple XML stanzas, all starting with a standard header.
+    # We first need to break this glob of data into individual XML components,
+    # while ignoreing the HTTP header returned by iLO 3.
+
+    chomp( my @stanzas = grep { !/HTTP\/1.1/ } split(/<\?xml.*?\?>/, $data) );
 
     # @stanzas now contains a number of valid XML sequences.
     # All but one is unnecessary; they contain short status messages and
@@ -1349,9 +1565,8 @@ sub _serialize {
     
     my $longest = ( sort {length($b) <=> length($a)} @stanzas )[0];
 
-    if (!$longest) {
-        $self->error('Error parsing response: no data received');
-        return;
+    if ($self->_debug > 3) {
+        print Dumper $longest;
     }
 
     # XML::Simple croaks if it can't parse the data properly.
@@ -1367,12 +1582,23 @@ sub _serialize {
     }
 
     if ($self->_debug >= 2) {
-
         print Dumper $xml;
-
     }
 
     return $xml;
+
+}
+
+
+sub _version {
+
+    my $self = shift;
+
+    if (@_) {
+        $self->{_version} = shift;
+    }
+
+    return $self->{_version};
 
 }
 
@@ -1386,6 +1612,16 @@ sub _wrap {
     my $username = $self->username or croak "Username not set";
     my $password = $self->password or croak "Password not set";
 
+    if (!$self->_version) {
+
+        my $ilo_version = $self->_detect_version or return;
+
+        print "Detected iLO version $ilo_version\n" if $self->_debug > 2;
+
+        $self->_version($ilo_version);
+
+    }
+
     my $header = qq|
         <?xml version="1.0"?>
         <LOCFG version="2.21">
@@ -1398,7 +1634,25 @@ sub _wrap {
         </RIBCL>
     |;
     
-    return $header . $body . $footer;
+    my $ilo_command = $header . $body . $footer;
+
+    if ($self->_version == 3) {
+
+        my $command_length = $self->_length($ilo_command);
+
+        my $http_header = qq|
+            POST /ribcl HTTP/1.1
+            HOST: localhost
+            Content-length: $command_length
+            Connection: Close
+
+        |;
+
+        $ilo_command = $http_header . $ilo_command;
+
+    }
+
+    return $ilo_command;
 
 }
 
@@ -1460,12 +1714,15 @@ been successfully tested with the following server types:
     DL360/G4p
     DL360/G5
     DL360/G6
+    DL360/G7 ** see note below
     DL380/G3
     DL380/G4
     DL380/G5
 
 It should work with other server models; feedback (either way) is much 
 appreciated.
+
+Note: iLO 3 support is in BETA, and still being tested.
 
 =head1 INTERFACE QUIRKS
 
@@ -1508,10 +1765,14 @@ later using their associated methods if you want.
    
 Optional parameters:
  
- address - hostname or IP of remote machine's iLO
-    port - default is 443, you may specify another port here
-username - username for logging in to iLO
-password - password for logging in to iLO
+  address - hostname or IP of remote machine's iLO
+     port - default is 443, you may specify another port here
+ username - username for logging in to iLO
+ password - password for logging in to iLO
+  version - version of iLO API to use, '1', '2' or '3'. versions 1 and 2 are
+            the same and correspond to iLO and iLO 2 respectively, if version
+            '3' is used the module will use the new iLO 3 interface. if not
+            specified the version will be detected automatically.
 
 =item address()
     
@@ -1587,7 +1848,7 @@ succeeded. Error checking has been omitted from most examples for brevity.
 
 =item power()
 
-    my $power_status = $ilo->power or die $ilo->error;
+    my $power_status = $ilo->power;
 
     if ($power_status eq 'off') {
 
@@ -1615,7 +1876,7 @@ to this method will attempt to change the power state:
 
 Returns the current power consumption in watts.
 
-This method is only available on G5 and newer models. Calling it on an
+This method is only available when using iLO 2 and above. Calling it on an
 older machine will cause the following error to be returned:
 
 Method not supported by this iLO version
@@ -1826,6 +2087,22 @@ Returns the mac address associated with the machine's secondary NIC (aka eth1).
     
 This method is not supported by pre-generation 4 hardware.
 
+=item mac03()
+
+    my $eth2_mac = $ilo->mac03;
+
+Returns the mac address associated with the machine's tertiary NIC, if
+installed. Note that mac addresses for add-on cards will not be available
+via this method.
+
+=item mac04()
+
+    my $eth3_mac = $ilo->mac04;
+
+Returns the mac address associated with the machine's quaternary NIC, if
+installed. Note that mac addresses for add-on cards will not be available
+via this method.
+
 =item macilo()
 
     my $ilo_mac = $ilo->macilo;
@@ -1962,11 +2239,11 @@ Resets the iLO management processor.
 
 =item fw_type()
 
-    # either 'iLO' or 'iLO2'
+    # either 'iLO', 'iLO2' or 'iLO3'
     print $ilo->fw_type;
 
 Returns the type of iLO management processor in the remote machine.
-As far as I know, possible values are 'iLO' and 'iLO2', depending on
+Possible values are 'iLO', 'iLO2' and 'iLO3', depending on
 how modern the server is.
 
 =item fw_version()
