@@ -1509,7 +1509,7 @@ sub _send {
             print "'$line'\n";
         }
         
-        my $ok = print {$client} $line, "\r\n";
+        my $ok = print {$client} $line . "\r\n";
 
         if (!$ok) {
             $self->error("Error transmitting command to server");
