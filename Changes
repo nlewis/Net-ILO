@@ -1,5 +1,8 @@
 Revision history for Net-ILO
 
+0.52   09/27/2010
+        - fix for older versions (<=5.8.0) of perl (thanks to Darko Pejakov)
+
 0.51   08/16/2010
         - if mac01 is set and mac03/04 aren't, calling mac04 or mac04 returns immediately rather than sending iLO request
         - renamed fw_version to get_fw_version for consistency
