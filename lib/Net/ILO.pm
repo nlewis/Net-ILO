@@ -9,7 +9,7 @@ use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
 
-our $VERSION = '0.52';
+our $VERSION = '0.53';
 
 
 my $METHOD_UNSUPPORTED = 'Method not supported by this iLO version';
@@ -303,9 +303,6 @@ sub https_port {
             croak "HTTPS port must be an integer between 0 and 65535";
         }
 
-        my $username = $self->username or croak "Username not set";
-        my $password = $self->password or croak "Password not set";
-
         my $ilo_command = qq|
             <RIB_INFO MODE="write">
             <MOD_GLOBAL_SETTINGS>
@@ -348,6 +345,43 @@ sub ip_address {
 
 }
 
+
+sub license {
+
+    my $self = shift;
+
+    if (@_) {
+
+        my $license_key = shift;
+
+        my $ilo_command = qq|
+            <RIB_INFO MODE="write">
+            <LICENSE>
+                <ACTIVATE KEY="$license_key"/>
+            </LICENSE> 
+            </RIB_INFO>
+        |;
+
+        $ilo_command    = $self->_wrap($ilo_command);
+        my $response    = $self->_send($ilo_command)    or return;
+        my $xml         = $self->_serialize($response)  or return;
+
+        if ( my $errmsg = _check_errors($xml) ) {
+            $self->error($errmsg);
+            return;
+        }
+
+    }
+    else {
+
+        croak 'license() requires the license key as a paramater';
+
+    }
+
+    return 1;
+
+}
+  
 
 sub mac01 {
     
@@ -523,9 +557,6 @@ sub network {
         
         my $arg_ref = shift;
 
-        my $username    = $self->username or croak "Username not set";
-        my $password    = $self->password or croak "Password not set";
-        
         my $domain_name = $arg_ref->{domain_name}   || $self->domain_name   or croak "domain_name not set";
         my $dns_name    = $arg_ref->{hostname}      || $self->hostname      or croak "name not set";
         my $dhcp_enable = $arg_ref->{dhcp_enabled}  || $self->dhcp_enabled  or croak "dhcp_enabled not set";
@@ -2236,6 +2267,14 @@ system. 'status' will be 'Ok' or 'Failed'.
     $ilo->reset;
 
 Resets the iLO management processor. 
+
+=item license()
+
+    # 25 characters, according to HP
+    $ilo->license('1111122222333334444455555');
+
+Activates iLO advanced pack licensing. An error will be returned if
+the key is not valid or if it is already in use.
 
 =item fw_type()
 

@@ -1,5 +1,9 @@
 Revision history for Net-ILO
 
+0.53   11/18/2010
+        - added ability to activate advanced license from Net::ILO
+        - removed username/password checking cruft from https_port() and network()
+
 0.52   09/27/2010
         - fix for older versions (<=5.8.0) of perl (thanks to Darko Pejakov)
 

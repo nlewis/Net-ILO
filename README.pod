@@ -566,6 +566,14 @@ system. 'status' will be 'Ok' or 'Failed'.
 
 Resets the iLO management processor. 
 
+=item license()
+
+    # 25 characters, according to HP
+    $ilo->license('1111122222333334444455555');
+
+Activates iLO advanced pack licensing. An error will be returned if
+the key is not valid or if it is already in use.
+
 =item fw_type()
 
     # either 'iLO', 'iLO2' or 'iLO3'
