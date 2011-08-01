@@ -7,10 +7,10 @@ use Test::More;
 
 my @commands = qw(
     get_embedded_health     get_global_settings     get_fw_version
-    get_host_data           get_network_settings    power_consumption       
+    get_host_data           get_network_settings    power_consumption
     power_on                power_off               reset
     uid_on                  uid_off                 uid_status
-);    
+);
 
 plan tests => scalar @commands * 2 + 1;
 
@@ -33,8 +33,8 @@ foreach my $command (@commands) {
 
     ok( !$@, "Command '$command' exists");
 
-    # iLO requires a syntax which is not valid XML so we need ot add
-    # a closing tag at the end, for purposes of this test only
+    # iLO requires a syntax which is not valid XML so we need to add
+    # a closing tag at the end for purposes of this test only
 
     $xml .= '</LOCFG>';
 

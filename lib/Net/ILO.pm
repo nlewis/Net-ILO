@@ -9,22 +9,22 @@ use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
 
-our $VERSION = '0.53';
+our $VERSION = '0.54';
 
 
 my $METHOD_UNSUPPORTED = 'Method not supported by this iLO version';
 
 
 sub address {
-    
+
     my $self = shift;
-    
+
     if (@_) {
         $self->{address} = shift;
     }
 
     return $self->{address};
-    
+
 }
 
 
@@ -40,12 +40,26 @@ sub add_user {
         my $user_login    = $arg_ref->{username} or croak 'username required';
         my $user_password = $arg_ref->{password} or croak 'password required';
 
-        my $user_admin    = $arg_ref->{admin} || 'No';
+        my $user_admin          = $arg_ref->{admin}                    || 'No';
+        my $user_can_remote     = $arg_ref->{remote_console_privilege} || 'No';
+        my $user_can_reset      = $arg_ref->{reset_privilege}          || 'No';
+        my $user_can_virtual    = $arg_ref->{virtual_media_privilege}  || 'No';
+        my $user_can_config     = $arg_ref->{config_ilo_privilege}     || 'No';
+        my $user_can_view_logs  = $arg_ref->{view_logs_privilege}      || 'No';
+        my $user_can_clear_logs = $arg_ref->{clear_logs_privilege}     || 'No';
+        my $user_can_update     = $arg_ref->{update_ilo_privilege}     || 'No';
 
-        my $ilo_command   = qq|
+        my $ilo_command = qq|
             <USER_INFO MODE="write">
             <ADD_USER USER_NAME="$user_name" USER_LOGIN="$user_login" PASSWORD="$user_password">
             <ADMIN_PRIV value="$user_admin"/>
+            <REMOTE_CONS_PRIV value="$user_can_remote"/>
+            <RESET_SERVER_PRIV value="$user_can_reset"/>
+            <VIRTUAL_MEDIA_PRIV value="$user_can_virtual"/>
+            <CONFIG_ILO_PRIV value="$user_can_config"/>
+            <VIEW_LOGS_PRIV value="$user_can_view_logs"/>
+            <CLEAR_LOGS_PRIV value="$user_can_clear_logs"/>
+            <UPDATE_ILO_PRIV value="$user_can_update"/>
             </ADD_USER>
             </USER_INFO>
         |;
@@ -85,9 +99,9 @@ sub biosdate {
 
 
 sub cpus {
-    
+
     my $self = shift;
-    
+
     if (!$self->{cpus}) {
         $self->_populate_host_data or return;
     }
@@ -111,7 +125,7 @@ sub del_user {
             </USER_INFO>
         |;
 
-        $ilo_command    = $self->_wrap($ilo_command);        
+        $ilo_command    = $self->_wrap($ilo_command);
         my $response    = $self->_send($ilo_command)    or return;
         my $xml         = $self->_serialize($response)  or return;
 
@@ -139,7 +153,7 @@ sub dhcp_enabled {
     if (!$self->{dhcp_enable}) {
         $self->_populate_network_settings or return;
     }
-    
+
     return $self->{dhcp_enable};
 
 }
@@ -159,15 +173,15 @@ sub domain_name {
 
 
 sub error {
-    
+
     my $self = shift;
-    
+
     if (@_) {
         $self->{error} = shift;
     }
-    
+
     return $self->{error};
-    
+
 }
 
 
@@ -257,14 +271,12 @@ sub http_port {
 
         my $http_port = shift;
 
-        if ($http_port !~ /^\d+$/ || $http_port > 65535) {
-            croak "HTTP port must be an integer between 0 and 65535";
-        }
-        
+        _port_is_valid($http_port) or croak "HTTP port must be an integer between 0 and 65535";
+
         my $ilo_command = qq|
             <RIB_INFO MODE="write">
             <MOD_GLOBAL_SETTINGS>
-                <HTTP_PORT value="$http_port"/> 
+                <HTTP_PORT value="$http_port"/>
             </MOD_GLOBAL_SETTINGS>
             </RIB_INFO>
         |;
@@ -277,7 +289,7 @@ sub http_port {
             $self->error($errmsg);
             return;
         }
-                
+
         $self->{http_port} = $http_port;
 
     }
@@ -299,9 +311,7 @@ sub https_port {
 
         my $https_port = shift;
 
-        if ($https_port !~ /^\d+$/ || $https_port > 65535) {
-            croak "HTTPS port must be an integer between 0 and 65535";
-        }
+        _port_is_valid($https_port) or croak "HTTPS port must be an integer between 0 and 65535";
 
         my $ilo_command = qq|
             <RIB_INFO MODE="write">
@@ -381,16 +391,16 @@ sub license {
     return 1;
 
 }
-  
+
 
 sub mac01 {
-    
+
     my $self = shift;
-    
+
     if (!$self->{mac01}) {
         $self->_populate_host_data or return;
     }
-    
+
     if ($self->{mac01}) {
         return $self->{mac01};
     }
@@ -403,9 +413,9 @@ sub mac01 {
 
 
 sub mac02 {
-    
+
     my $self = shift;
-    
+
     if (!$self->{mac02}) {
         $self->_populate_host_data or return;
     }
@@ -417,7 +427,7 @@ sub mac02 {
         $self->error($METHOD_UNSUPPORTED);
         return;
     }
- 
+
 }
 
 
@@ -465,9 +475,9 @@ sub mac04 {
 
 
 sub macilo {
-    
+
     my $self = shift;
-    
+
     if (!$self->{macilo}) {
         $self->_populate_host_data or return;
     }
@@ -479,7 +489,7 @@ sub macilo {
         $self->error($METHOD_UNSUPPORTED);
         return;
     }
-    
+
 }
 
 
@@ -533,7 +543,7 @@ sub mod_user {
         if ($self->username eq $mod_username) {
 
             $self->password($mod_password);
- 
+
         }
 
     }
@@ -546,7 +556,7 @@ sub mod_user {
 
     return 1;
 
-} 
+}
 
 
 sub network {
@@ -554,7 +564,7 @@ sub network {
     my $self = shift;
 
     if (@_) {
-        
+
         my $arg_ref = shift;
 
         my $domain_name = $arg_ref->{domain_name}   || $self->domain_name   or croak "domain_name not set";
@@ -563,7 +573,7 @@ sub network {
         my $ip_address  = $arg_ref->{ip_address}    || $self->ip_address    or croak "ip_address not set";
         my $subnet_mask = $arg_ref->{subnet_mask}   || $self->subnet_mask   or croak "subnet_mask not set";
         my $gateway     = $arg_ref->{gateway}       || $self->gateway       or croak "gateway not set";
-        
+
         my $ilo_command = qq|
             <RIB_INFO MODE="write">
             <MOD_NETWORK_SETTINGS>
@@ -584,10 +594,9 @@ sub network {
         if ( my $errmsg = _check_errors($xml) ) {
             $self->error($errmsg);
             return;
-        }   
+        }
 
         # force module to refresh new settings from the remote server
-
         foreach my $option_changed (keys %$arg_ref) {
 
             delete $self->{$option_changed};
@@ -595,7 +604,6 @@ sub network {
         }
 
         # if IP was changed it should be updated, if not this won't hurt
-
         $self->address($ip_address);
 
     }
@@ -603,40 +611,49 @@ sub network {
     return 1;
 
 }
-    
+
 
 sub new {
-    
-    my ($class, $options) = @_;
+
+    my ($class) = shift;
+
+    # RT #65352: allow hash or hashref constructor args
+    my %options = ref $_[0] ? %{$_[0]} : @_;
 
     my $self = {};
 
     bless($self, $class);
-    
-    $self->address(  $options->{address}  );
-    $self->username( $options->{username} );
-    $self->password( $options->{password} );
+
+    $self->address(  $options{address}  );
+    $self->username( $options{username} );
+    $self->password( $options{password} );
+
+    if ($options{port}) {
+        $self->port($options{port});
+    }
+    else {
+        $self->port(443);
+    }
 
     # iLO version will be autodetected later if not specified
-    $self->{_version} = $options->{version} || undef; 
-    $self->{port}     = $options->{port}    || '443';
-    $self->{_debug}   = $options->{debug}   || '0';
-    
+    $self->{_version} = $options{version} || undef; 
+    $self->{_debug}   = $options{debug}   || '0';
+
     return $self;
-    
+
 }
 
 
 sub password {
-    
+
     my $self = shift;
-    
+
     if ( @_ ) {
         $self->{password} = shift;
     }
-    
+
     return $self->{password};
-    
+
 }
 
 
@@ -645,7 +662,11 @@ sub port {
     my $self = shift;
 
     if (@_) {
-        $self->{port} = shift;
+        my $port = shift;
+
+        _port_is_valid($port) or croak "Port must be an integer between 0 and 65535";
+
+        $self->{port} = $port;
     }
 
     return $self->{port};
@@ -654,17 +675,17 @@ sub port {
 
 
 sub power {
-    
+
     my $self = shift;
-    
+
     if ( @_ ) {
-        
+
         my $state_requested = shift;
-        
-        my $ilo_command;        
+
+        my $ilo_command;
 
         if (lc($state_requested) eq 'on') {
-           
+
             $ilo_command = $self->_generate_cmd('power_on');
 
         }
@@ -692,7 +713,7 @@ sub power {
             return;
         }
 
-        return $state_requested;        
+        return $state_requested;
 
     }
 
@@ -774,11 +795,11 @@ sub ramslots {
 
 
 sub reset {
-    
+
     my $self = shift;
-    
+
     my $ilo_command = $self->_generate_cmd('reset');
-    
+
     my $response    = $self->_send($ilo_command)   or return;
     my $xml         = $self->_serialize($response) or return;
 
@@ -788,12 +809,12 @@ sub reset {
     }
 
     return 1;
-    
+
 }
 
 
 sub serialID {
-    
+
     my $self = shift;
 
     if (!$self->{serialID}) {
@@ -826,10 +847,8 @@ sub ssh_port {
 
         my $ssh_port = shift;
 
-        if ($ssh_port !~ /^\d+$/ || $ssh_port > 65535) {
-            croak "ssh_port must be an integer between 0 and 65535";
-        }
-        
+        _port_is_valid($ssh_port) or croak "ssh_port must be an integer between 0 and 65535";
+
         my $ilo_command = qq|
             <RIB_INFO MODE="write">
             <MOD_GLOBAL_SETTINGS>
@@ -846,7 +865,7 @@ sub ssh_port {
             $self->error($errmsg);
             return;
         }
-                
+
         $self->{ssh_port} = $ssh_port;
 
     }
@@ -871,7 +890,7 @@ sub ssh_status {
         my $ilo_command = qq|
             <RIB_INFO MODE="write">
             <MOD_GLOBAL_SETTINGS>
-                <SSH_STATUS value="$ssh_status"/> 
+                <SSH_STATUS value="$ssh_status"/>
             </MOD_GLOBAL_SETTINGS>
             </RIB_INFO>
         |;
@@ -964,7 +983,7 @@ sub uid {
     }
 
     my $ilo_command = $self->_generate_cmd('uid_status');
-    
+
     my $response    = $self->_send($ilo_command)    or return;
     my $xml         = $self->_serialize($response)  or return;
 
@@ -975,21 +994,21 @@ sub uid {
 
     my $uid_status = $xml->{GET_UID_STATUS}->{UID};
 
-    return lc($uid_status); 
+    return lc($uid_status);
 
 }
 
 
 sub username {
-    
+
     my $self = shift;
-    
+
     if (@_) {
         $self->{username} = shift;
     }
-    
+
     return $self->{username};
-    
+
 }
 
 
@@ -1011,40 +1030,40 @@ sub _check_errors {
 
 
 sub _connect {
-    
+
     my $self = shift;
-    
+
     if ($self->{_client}) {
         return $self->{_client};
     }
-    
+
     my $address = $self->address or croak "Can't connect: address not set";
     my $port    = $self->port    or croak "Can't connect: port not set";
-    
+
     $self->{_client} = IO::Socket::SSL->new(
         PeerAddr => "$address:$port",
-    );      
+    );
 
     if (!$self->{_client}) {
         $self->error( "Unable to establish SSL connection with $address:$port [" . IO::Socket::SSL::errstr() . "]" );
         return;
     }
-    
+
     return $self->{_client};
-    
+
 }
 
 
 sub _debug {
-    
+
     my $self = shift;
-    
-    if (@_) { 
+
+    if (@_) {
         $self->{_debug} = shift;
     }
-    
+
     return $self->{_debug};
-    
+
 }
 
 
@@ -1074,7 +1093,7 @@ sub _detect_version {
     }
 
 }
-    
+
 
 sub _disconnect {
 
@@ -1083,7 +1102,7 @@ sub _disconnect {
     my $client = $self->{_client} or return;
 
     $client->close;
-    
+
     delete $self->{_client};
 
     return 1;
@@ -1096,11 +1115,11 @@ sub _generate_cmd {
     my ($self, $command) = @_;
 
     my %commands = (
-   
+
         'get_embedded_health'   => qq( <SERVER_INFO MODE="read">
                                        <GET_EMBEDDED_HEALTH/>
                                        </SERVER_INFO> ),
- 
+
         'get_fw_version'        => qq( <RIB_INFO MODE="read">
                                        <GET_FW_VERSION/>
                                        </RIB_INFO> ),
@@ -1112,11 +1131,11 @@ sub _generate_cmd {
         'get_host_data'         => qq( <SERVER_INFO MODE="read">
                                        <GET_HOST_DATA/>
                                        </SERVER_INFO> ),
-        
+
         'get_network_settings'  => qq( <RIB_INFO MODE="read">
                                        <GET_NETWORK_SETTINGS/>
                                        </RIB_INFO> ),
-        
+
         'power_consumption'     => qq( <SERVER_INFO MODE="read">
                                        <GET_POWER_READINGS/>
                                        </SERVER_INFO> ),
@@ -1166,12 +1185,10 @@ sub _generate_cmd {
 
 sub _length {
 
-    # for iLO 3 we need to know the length of the XML for the 
+    # for iLO 3 we need to know the length of the XML for the
     # Content-length field in the http header
 
     my ($self, $ilo_command) = @_;
-
-    # each line has \r\n appended when sending, so + 2
 
     my $length = 0;
 
@@ -1180,6 +1197,7 @@ sub _length {
         $line =~ s/^\s+//;
         $line =~ s/\s+$//;
 
+        # each line has \r\n appended when sending, so + 2
         $length += length($line) + 2;
 
     }
@@ -1189,7 +1207,7 @@ sub _length {
 }
 
 
-sub _populate_embedded_health { 
+sub _populate_embedded_health {
 
     my $self = shift;
 
@@ -1243,21 +1261,25 @@ sub _populate_embedded_health {
 
     foreach my $temperature (@$temperatures) {
 
-        my $location = $temperature->{LOCATION}->{VALUE};
         my $name     = $temperature->{LABEL}->{VALUE};
-        my $status   = $temperature->{STATUS}->{VALUE};
+        my $location = $temperature->{LOCATION}->{VALUE};
         my $value    = $temperature->{CURRENTREADING}->{VALUE};
         my $unit     = $temperature->{CURRENTREADING}->{UNIT};
+        my $caution  = $temperature->{CAUTION}->{VALUE};
+        my $critical = $temperature->{CRITICAL}->{VALUE};
+        my $status   = $temperature->{STATUS}->{VALUE};
 
         next unless $value && $value =~ /^\d+$/;
 
         push( @{$self->{temperatures}}, {
-            'location'  => $location,
             'name'      => $name,
-            'status'    => $status,
+            'location'  => $location,
             'value'     => $value,
             'unit'      => $unit,
-        }); 
+            'caution'   => $caution,
+            'critical'  => $critical,
+            'status'    => $status,
+        });
 
     }
 
@@ -1305,13 +1327,13 @@ sub _populate_global_settings {
 
     my @fields = qw( session_timeout    https_port      http_port
                      ssh_port           ssh_status                );
-    
+
     foreach my $field (@fields) {
 
         $self->{$field} = $xml->{GET_GLOBAL_SETTINGS}->{uc($field)}->{VALUE};
 
     }
-   
+
     return 1;
 
 }
@@ -1320,12 +1342,12 @@ sub _populate_global_settings {
 sub _populate_host_data {
 
     my $self = shift;
-    
+
     my $ilo_command = $self->_generate_cmd('get_host_data');
 
     my $response    = $self->_send($ilo_command)    or return;
     my $xml         = $self->_serialize($response)  or return;
- 
+
     if ( my $errmsg = _check_errors($xml) ) {
         $self->error($errmsg);
         return;
@@ -1333,11 +1355,11 @@ sub _populate_host_data {
 
     # SMBIOS data is stored in a big fat array
     #
-    # data is not guaranteed to be in any particular location, so we have to
+    # data is not guaranteed to be in any particular index, so we have to
     # iterate through all the data looking for certain fields.
     #
     # thankfully, SMBIOS *types* are standard (eg. CPU data is type 4)
-    # so we have a starting point 
+    # so we have a starting point
     #
     # this really sucks but I don't know of a better way
 
@@ -1381,15 +1403,15 @@ sub _populate_host_data {
                 }
                 elsif ($field_name eq 'UUID') {
                     $self->{UUID}       = $field_value;
-                } 
-       
+                }
+
             }
 
-        } 
+        }
         elsif ($smbios_type == 4) {
 
             my ($name, $speed, $cores);
-            
+
             for my $entry (0 .. scalar @$smbios_data) {
 
                 my $field_name  = $smbios_data->[$entry]->{NAME};
@@ -1412,7 +1434,7 @@ sub _populate_host_data {
             # otherwise slot is empty
             next unless $speed && $speed =~ /^[1-9]/;
 
-            push( @{$self->{cpus}}, { 
+            push( @{$self->{cpus}}, {
                 'name'  => $name,
                 'speed' => $speed,
                 'cores' => $cores }
@@ -1422,7 +1444,7 @@ sub _populate_host_data {
         elsif ($smbios_type == 17) {
 
             my ($location, $size, $speed);
-            
+
             for my $entry (0 .. scalar @$smbios_data) {
 
                 my $field_name  = $smbios_data->[$entry]->{NAME};
@@ -1484,7 +1506,7 @@ sub _populate_host_data {
         }
 
     }
-    
+
     ($self->{mac01}  = lc($self->{mac01}))  =~ tr/-/:/;
     ($self->{mac02}  = lc($self->{mac02}))  =~ tr/-/:/;
     ($self->{mac03}  = lc($self->{mac03}))  =~ tr/-/:/;
@@ -1492,19 +1514,19 @@ sub _populate_host_data {
     ($self->{macilo} = lc($self->{macilo})) =~ tr/-/:/;
 
     return 1;
-    
+
 }
 
 
 sub _populate_network_settings {
-    
+
     my $self = shift;
-    
+
     my $ilo_command = $self->_generate_cmd('get_network_settings');
-    
+
     my $response    = $self->_send($ilo_command)    or return;
     my $xml         = $self->_serialize($response)  or return;
-    
+
     if ( my $errmsg = _check_errors($xml) ) {
         $self->error($errmsg);
         return;
@@ -1513,15 +1535,15 @@ sub _populate_network_settings {
     my @fields = qw( dhcp_dns_server     dhcp_gateway    dns_name
                      dhcp_domain_name    ip_address      domain_name
                      dhcp_enable         subnet_mask     gateway_ip_address );
-                    
+
     foreach my $field (@fields) {
-        
+
         $self->{$field} = $xml->{GET_NETWORK_SETTINGS}->{uc($field)}->{VALUE};
-        
+
     }
 
     return 1;
-    
+
 }
 
 
@@ -1539,14 +1561,14 @@ sub _send {
         if ($self->_debug > 0) {
             print "'$line'\n";
         }
-        
+
         my $ok = print {$client} $line . "\r\n";
 
         if (!$ok) {
             $self->error("Error transmitting command to server");
             return;
         }
-        
+
     }
 
     chomp( my $response = join('', <$client>) );
@@ -1554,11 +1576,11 @@ sub _send {
     # iLO 3 returns a chunked http response
     # rather than parse it, just filter out the chunking data
     # janky, but a lightweight solution which works for all iLO versions
-    
+
     $response =~ s/[\r\n]+[0-9a-f]{3}[\r\n]+//gs;
 
     $self->_disconnect or die "Internal error: disconnect failed, wtf!";
-    
+
     if (!$response) {
         $self->error("No response received from remote machine");
         return;
@@ -1584,16 +1606,16 @@ sub _serialize {
 
     # iLO returns multiple XML stanzas, all starting with a standard header.
     # We first need to break this glob of data into individual XML components,
-    # while ignoreing the HTTP header returned by iLO 3.
+    # while ignoring the HTTP header returned by iLO 3.
 
     chomp( my @stanzas = grep { !/HTTP\/1.1/ } split(/<\?xml.*?\?>/, $data) );
 
     # @stanzas now contains a number of valid XML sequences.
     # All but one is unnecessary; they contain short status messages and
     # nothing else. So, we want to parse only the longest message.
-    # 
+    #
     # NB: The same status codes are also included in the longest stanza.
-    
+
     my $longest = ( sort {length($b) <=> length($a)} @stanzas )[0];
 
     if ($self->_debug > 3) {
@@ -1617,6 +1639,17 @@ sub _serialize {
     }
 
     return $xml;
+
+}
+
+
+sub _port_is_valid {
+
+    my $port = shift;
+
+    return unless defined $port && $port =~ /^\d{1,5}$/ && $port <= 65535;
+
+    return 1;
 
 }
 
@@ -1664,7 +1697,7 @@ sub _wrap {
         </LOGIN>
         </RIBCL>
     |;
-    
+
     my $ilo_command = $header . $body . $footer;
 
     if ($self->_version == 3) {
@@ -1689,12 +1722,12 @@ sub _wrap {
 
 
 sub DESTROY {
-    
+
     my $self = shift;
-    
+
     my $client = $self->{_client} or return;
     $client->close;
-        
+
     return;
 }
 
@@ -1708,30 +1741,30 @@ Net::ILO - Interface to HP Integrated Lights-Out
 =head1 SYNOPSIS
 
     use Net::ILO;
- 
+
     my $ilo = Net::ILO->new({
         address     => '192.168.128.10',
         username    => 'Administrator',
         password    => 'secret',
     });
-    
+
     # returns 'on' or 'off'
     my $power_status = $ilo->power or die $ilo->error;
-    
+
     $ilo->power('off');
     $ilo->power('reset');
-    
+
     my $mac01  = $ilo->mac01;
     my $mac02  = $ilo->mac02;
     my $macilo = $ilo->macilo;
-    
-    # see METHODS for complete listing 
-  
+
+    # see METHODS for complete listing
+
 =head1 DESCRIPTION
 
-The Net::ILO module is an interface to a subset of Hewlett-Packards 
+The Net::ILO module is an interface to a subset of Hewlett-Packards
 Integrated Lights-Out out-of-band management system. HP's API is XML-based
-and cumbersome to use; this module aims to simplify accessing 
+and cumbersome to use; this module aims to simplify accessing
 the iLO from Perl while retaining as much functionality as possible.
 
 Not every iLO function is implemented here, however most common ones are.
@@ -1750,7 +1783,7 @@ been successfully tested with the following server types:
     DL380/G4
     DL380/G5
 
-It should work with other server models; feedback (either way) is much 
+It should work with other server models; feedback (either way) is much
 appreciated.
 
 Note: iLO 3 support is in BETA, and still being tested.
@@ -1768,7 +1801,7 @@ is acceptable when passing a value to your server's iLO.
 Power and UID statuses are an exception; their states can be either
 'on' or 'off'.
 
-=head1 METHODS 
+=head1 METHODS
 
 The interface is extensive and methods have been grouped by function for
 easier digestion.
@@ -1778,24 +1811,32 @@ easier digestion.
 =over
 
 =item new()
-    
+
     my $ilo = Net::ILO->new({
         address     => '192.168.131.185',
         username    => 'Administrator',
         password    => 'secret',
     });
-    
-Creates a new ILO object, but does not attempt a connection. Parameters
-are passed as an anonymous hashref.
-    
-Required paramters: 
 
-None, however trying to call any method without setting at least the 
-address, username and password will fail. You may however, set these 
+    # can also use a hash rather than hashref
+
+    my $ilo = Net::ILO->new(
+        address     => '192.168.131.185',
+        username    => 'Administrator',
+        password    => 'secret',
+    );
+
+Creates a new ILO object, but does not attempt a connection. Parameters
+are passed as an anonymous hash or hashref.
+
+Required paramters:
+
+None, however trying to call any method without setting at least the
+address, username and password will fail. You may however, set these
 later using their associated methods if you want.
-   
+
 Optional parameters:
- 
+
   address - hostname or IP of remote machine's iLO
      port - default is 443, you may specify another port here
  username - username for logging in to iLO
@@ -1803,10 +1844,14 @@ Optional parameters:
   version - version of iLO API to use, '1', '2' or '3'. versions 1 and 2 are
             the same and correspond to iLO and iLO 2 respectively, if version
             '3' is used the module will use the new iLO 3 interface. if not
-            specified the version will be detected automatically.
+            specified the version will be detected automatically (recommended)
+    debug - debug level (default 0). Increasing this number (to a maximum of 3)
+            displays more diagnostic information to the screen, such as the
+            data sent to and received from iLO, the Perl data structure
+            created from the XML received, etc.
 
 =item address()
-    
+
     # connect to a different machine
     $ilo->address('192.168.131.186');
 
@@ -1817,13 +1862,13 @@ Returns or sets the address of the remote machine to connect to.
 Please note that a lot of the data gathered (power state excluded) is cached.
 Connecting to machine A, calling mac01(), then connecting to machine B and
 calling mac01() will return the same data. It is recommended that you
-instantiate a new object for each server you connect to. 
+instantiate a new object for each server you connect to.
 
 =item port()
 
     # your company's machines use a non-standard SSL port
     $ilo->port(447);
-    
+
 Returns or sets the port to connect to the remote server on.
 Port 443 is assumed if not specified.
 
@@ -1835,7 +1880,7 @@ Port 443 is assumed if not specified.
     # power-cycling machine requires elevated privileges
 
     $ilo->username('Administrator');
-    $ilo->power('reset');    
+    $ilo->power('reset');
 
 Returns or sets the username to use when logging in.
 
@@ -1859,7 +1904,7 @@ Returns or sets the password to use when logging in.
 
     my $power_status = $ilo->power or die $ilo->error;
 
-    Unable to establish SSL connection with 127.0.0.1:443 
+    Unable to establish SSL connection with 127.0.0.1:443
     [IO::Socket::INET6 configuration failederror:00000000:lib(0):func(0):reason(0)] at /somescript.pl line 14.
 
 Returns the last error reported, if any. All methods return false when
@@ -1891,11 +1936,11 @@ succeeded. Error checking has been omitted from most examples for brevity.
         $ilo->power('reset');
 
     }
-    
+
 Calling this method without parameters will return the current power
 state of the machine, either 'on' or 'off'. Passing any of the following
 to this method will attempt to change the power state:
-    
+
     on
     off
     reset
@@ -1932,7 +1977,7 @@ For information on changing the hostname, see the network() method.
 
     # maybe ilo.somecompany.net
     my $domain_name = $ilo->domain_name;
- 
+
 Returns the DNS domain name of the remote machine.
 
 For information on changing the domain name, see the network() method.
@@ -1941,7 +1986,7 @@ For information on changing the domain name, see the network() method.
 
     # either 'Y' or 'N'
     print $ilo->dhcp_enabled;
-    
+
 Returns 'Y' if DHCP is enabled for the iLO networking, and 'N' if a
 static IP address is in use.
 
@@ -1965,7 +2010,7 @@ Returns the subnet mask of the iLO processor.
 
     # you guessed it, network dependent
     print $ilo->gateway;
-    
+
 Returns the default gateway in use for the iLO networking.
 
 =item network()
@@ -1978,7 +2023,7 @@ Returns the default gateway in use for the iLO networking.
         subnet_mask     => '255.255.255.0',
         gateway         => '192.168.128.1',
     }) or die $ilo->error;
-    
+
 Allows you to modify the network configuration of the iLO processor. The
 following parameters are allowed, see individual methods above for more detail:
 
@@ -1996,8 +2041,8 @@ Setting dhcp_enabled to 'yes' causes all IP related settings to have no effect.
 If the IP address is changed here, address() is updated with the new information.
 
 Networking changes cause the iLO processor to reset, it should become
-available again within 30 seconds. 
-   
+available again within 30 seconds.
+
 The rationale behind seperate methods for viewing and changing network
 settings is as follows:
 
@@ -2039,7 +2084,7 @@ Returns the serial number of the remote machine.
         print "Cores: ", $cpu->{cores}, "\n";
 
     }
-    
+
     # yields the following on a single CPU Xeon:
     #
     # Number of CPUs: 1
@@ -2115,7 +2160,7 @@ This method is not supported by pre-generation 4 hardware.
     my $eth1_mac = $ilo->mac02;
 
 Returns the mac address associated with the machine's secondary NIC (aka eth1).
-    
+
 This method is not supported by pre-generation 4 hardware.
 
 =item mac03()
@@ -2139,7 +2184,7 @@ via this method.
     my $ilo_mac = $ilo->macilo;
 
 Returns the mac address associated with the machine's iLO interface.
-    
+
 This method is not supported by pre-generation 4 hardware.
 
 =item biosdate()
@@ -2187,8 +2232,8 @@ Returns the release date of the system's BIOS.
     #     Unit: Percentage
     #   Status: Ok
 
-Returns arrayref containing the status of the fan block(s) installed in the 
-system. 'status' will be 'Ok' or 'Failed'. 
+Returns arrayref containing the status of the fan block(s) installed in the
+system. 'status' will be 'Ok' or 'Failed'.
 
 =item temperatures()
 
@@ -2200,6 +2245,8 @@ system. 'status' will be 'Ok' or 'Failed'.
         print "Location: ", $sensor->{location}, "\n";
         print "   Value: ", $sensor->{value},    "\n";
         print "    Unit: ", $sensor->{unit},     "\n";
+        print " Caution: ", $sensor->{caution},  "\n";
+        print "Critical: ", $sensor->{critical}, "\n";
         print "  Status: ", $sensor->{status},   "\n\n";
 
     }
@@ -2208,30 +2255,40 @@ system. 'status' will be 'Ok' or 'Failed'.
     # Location: I/O Board
     #    Value: 49
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 2
     # Location: Ambient
     #    Value: 19
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 3
     # Location: CPU 1
     #    Value: 32
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 4
     # Location: CPU 1
     #    Value: 32
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 5
     # Location: Power Supply
     #    Value: 28
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
 
 Returns arrayref containing the status of the temperature sensor(s) installed
@@ -2253,7 +2310,7 @@ critical threshold.
     # Status: Ok
 
 Returns arrayref containing the status of the power supplies installed in the
-system. 'status' will be 'Ok' or 'Failed'. 
+system. 'status' will be 'Ok' or 'Failed'.
 
 =back
 
@@ -2266,7 +2323,7 @@ system. 'status' will be 'Ok' or 'Failed'.
     # iLO web interface is hung, try resetting it
     $ilo->reset;
 
-Resets the iLO management processor. 
+Resets the iLO management processor.
 
 =item license()
 
@@ -2296,7 +2353,7 @@ Returns the version of iLO firmware currently running.
 
     # format is Nov 17 2006
     print $ilo->fw_date;
-    
+
 Returns the date the iLO firmware was released.
 
 =item ssh_status()
@@ -2338,8 +2395,8 @@ Changing the HTTP port causes the iLO processor to reset, it should become
 available again within about 30 seconds.
 
 =item https_port()
-   
-    # default is 443 
+
+    # default is 443
     print $ilo->https_port;
 
     $ilo->https_port(554);
@@ -2374,16 +2431,39 @@ eg. http, https, ssh, etc.
         admin    => 'Yes',
     });
 
-    # add a regular user
+    # add a regular user with no privileges
     $ilo->add_user({
-        name      => 'Jim Beam',
-        username  => 'jbeam',
-        password  => 'secret',
+        name     => 'Jim Beam',
+        username => 'jbeam',
+        password => 'secret',
     });
 
-Adds a user who will be able to log in to iLO via HTTPS, SSH, and any
-other interface. When adding a non-admin user, passing in the parameter
-admin => 'No' is also acceptable. 
+    # add a regular user with full privileges (aside from managing users)
+    #
+    # for a detailed discussion of what each privilege provides, please see
+    # the document 'HP Integrated Lights-Out Management Processor Scripting and
+    # Command Line Resource Guide'
+    #
+    # if unspecified, default for each privilege is 'No'.
+
+    $ilo->add_user({
+        name     => 'Jack Daniels',
+        username => 'jdaniels',
+        password => 'secret',
+        remote_console_privilege => 'Yes',
+        reset_privilege          => 'Yes',
+        virtual_media_privilege  => 'Yes',
+        config_ilo_privilege     => 'Yes',
+        view_logs_privilege      => 'Yes',
+        clear_logs_privilege     => 'Yes',
+        update_ilo_privilege     => 'Yes',
+    })
+
+Adds an iLO user. Admin users have full priveleges, including the ability to
+add and remove other users. Non-admin users have configurable privileges which
+default to disabled. The subset of permissions implemented is listed above.
+Users can log in to iLO via any interface, ie. HTTPS, SSH, etc. When adding a
+non-admin user, passing in the parameter admin => 'No' is also acceptable.
 
 =item mod_user()
 
@@ -2401,7 +2481,7 @@ admin => 'No' is also acceptable.
         username => 'guest',
         password => 'changem3!',
     });
-    
+
 Method for modifying existing user accounts. Currently this method is
 only able to change user's passwords; it cannot change permission
 levels.
@@ -2458,7 +2538,7 @@ An error will be returned if you pass an invalid state.
 
 General authentication error, eg. bad username or password when logging in.
 
-Could also mean you attempted to change the settings (eg. password) for a 
+Could also mean you attempted to change the settings (eg. password) for a
 user which doesn't exist
 
 =item C<Method not supported by this iLO version>
@@ -2545,7 +2625,7 @@ L<http://search.cpan.org/dist/Net-ILO>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2010 Nicholas Lewis, all rights reserved.
+Copyright 2011 Nicholas Lewis, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

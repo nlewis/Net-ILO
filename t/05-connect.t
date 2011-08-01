@@ -3,24 +3,17 @@
 use strict;
 
 use Net::ILO;
-use Test::More tests => 3;
+use Test::More tests => 2;
 
 # TODO: mock IO::Socket::SSL object for better testing
 
-my $ilo = Net::ILO->new;
+my $ilo = Net::ILO->new();
 
 my $connection;
 
 eval { $connection = $ilo->_connect; };
 
 ok( $@ =~ "Can't connect: address not set", 'Connecting without address throws exception' );
-
-$ilo->address('127.0.0.1');
-$ilo->port(undef);
-
-eval { $connection = $ilo->_connect; };
-
-ok( $@ =~ "Can't connect: port not set",    'Connecting without port throws exception' );
 
 $ilo->{_client} = 'Fake connection';
 

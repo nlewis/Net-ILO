@@ -1,5 +1,14 @@
 Revision history for Net-ILO
 
+0.54   07/1/2011
+        - constructor now accepts either hash or hashref
+        - added configurable privileges for non-admin users to add_user() (thanks to Chris Sarginson)
+        - added ability to read 'Caution' and 'Critical' thresholds from temperature sensors (thanks to Matthew Stier)
+        - better error checking for invalid port (as well as an additional unit test)
+        - documented 'debug' parameter in new()
+        - fixed several typos in comments
+        - whitespace cleanup
+
 0.53   11/18/2010
         - added ability to activate advanced license from Net::ILO
         - removed username/password checking cruft from https_port() and network()

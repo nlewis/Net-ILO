@@ -1,8 +1,7 @@
 - document 'Invalid Boolean' error
 - normalize $state_requested
 - test cases
-	- passing invalid port to ssh_port, http_port, https_port
-	- basic getters/setters
+    - basic getters/setters
     - mock connection
 - include every method in POD SYNOPSIS
 

@@ -6,30 +6,30 @@ Net::ILO - Interface to HP Integrated Lights-Out
 =head1 SYNOPSIS
 
     use Net::ILO;
- 
+
     my $ilo = Net::ILO->new({
         address     => '192.168.128.10',
         username    => 'Administrator',
         password    => 'secret',
     });
-    
+
     # returns 'on' or 'off'
     my $power_status = $ilo->power or die $ilo->error;
-    
+
     $ilo->power('off');
     $ilo->power('reset');
-    
+
     my $mac01  = $ilo->mac01;
     my $mac02  = $ilo->mac02;
     my $macilo = $ilo->macilo;
-    
-    # see METHODS for complete listing 
-  
+
+    # see METHODS for complete listing
+
 =head1 DESCRIPTION
 
-The Net::ILO module is an interface to a subset of Hewlett-Packards 
+The Net::ILO module is an interface to a subset of Hewlett-Packards
 Integrated Lights-Out out-of-band management system. HP's API is XML-based
-and cumbersome to use; this module aims to simplify accessing 
+and cumbersome to use; this module aims to simplify accessing
 the iLO from Perl while retaining as much functionality as possible.
 
 Not every iLO function is implemented here, however most common ones are.
@@ -48,7 +48,7 @@ been successfully tested with the following server types:
     DL380/G4
     DL380/G5
 
-It should work with other server models; feedback (either way) is much 
+It should work with other server models; feedback (either way) is much
 appreciated.
 
 Note: iLO 3 support is in BETA, and still being tested.
@@ -66,7 +66,7 @@ is acceptable when passing a value to your server's iLO.
 Power and UID statuses are an exception; their states can be either
 'on' or 'off'.
 
-=head1 METHODS 
+=head1 METHODS
 
 The interface is extensive and methods have been grouped by function for
 easier digestion.
@@ -76,24 +76,32 @@ easier digestion.
 =over
 
 =item new()
-    
+
     my $ilo = Net::ILO->new({
         address     => '192.168.131.185',
         username    => 'Administrator',
         password    => 'secret',
     });
-    
-Creates a new ILO object, but does not attempt a connection. Parameters
-are passed as an anonymous hashref.
-    
-Required paramters: 
 
-None, however trying to call any method without setting at least the 
-address, username and password will fail. You may however, set these 
+    # can also use a hash rather than hashref
+
+    my $ilo = Net::ILO->new(
+        address     => '192.168.131.185',
+        username    => 'Administrator',
+        password    => 'secret',
+    );
+
+Creates a new ILO object, but does not attempt a connection. Parameters
+are passed as an anonymous hash or hashref.
+
+Required paramters:
+
+None, however trying to call any method without setting at least the
+address, username and password will fail. You may however, set these
 later using their associated methods if you want.
-   
+
 Optional parameters:
- 
+
   address - hostname or IP of remote machine's iLO
      port - default is 443, you may specify another port here
  username - username for logging in to iLO
@@ -101,10 +109,14 @@ Optional parameters:
   version - version of iLO API to use, '1', '2' or '3'. versions 1 and 2 are
             the same and correspond to iLO and iLO 2 respectively, if version
             '3' is used the module will use the new iLO 3 interface. if not
-            specified the version will be detected automatically.
+            specified the version will be detected automatically (recommended)
+    debug - debug level (default 0). Increasing this number (to a maximum of 3)
+            displays more diagnostic information to the screen, such as the
+            data sent to and received from iLO, the Perl data structure
+            created from the XML received, etc.
 
 =item address()
-    
+
     # connect to a different machine
     $ilo->address('192.168.131.186');
 
@@ -115,13 +127,13 @@ Returns or sets the address of the remote machine to connect to.
 Please note that a lot of the data gathered (power state excluded) is cached.
 Connecting to machine A, calling mac01(), then connecting to machine B and
 calling mac01() will return the same data. It is recommended that you
-instantiate a new object for each server you connect to. 
+instantiate a new object for each server you connect to.
 
 =item port()
 
     # your company's machines use a non-standard SSL port
     $ilo->port(447);
-    
+
 Returns or sets the port to connect to the remote server on.
 Port 443 is assumed if not specified.
 
@@ -133,7 +145,7 @@ Port 443 is assumed if not specified.
     # power-cycling machine requires elevated privileges
 
     $ilo->username('Administrator');
-    $ilo->power('reset');    
+    $ilo->power('reset');
 
 Returns or sets the username to use when logging in.
 
@@ -157,7 +169,7 @@ Returns or sets the password to use when logging in.
 
     my $power_status = $ilo->power or die $ilo->error;
 
-    Unable to establish SSL connection with 127.0.0.1:443 
+    Unable to establish SSL connection with 127.0.0.1:443
     [IO::Socket::INET6 configuration failederror:00000000:lib(0):func(0):reason(0)] at /somescript.pl line 14.
 
 Returns the last error reported, if any. All methods return false when
@@ -189,11 +201,11 @@ succeeded. Error checking has been omitted from most examples for brevity.
         $ilo->power('reset');
 
     }
-    
+
 Calling this method without parameters will return the current power
 state of the machine, either 'on' or 'off'. Passing any of the following
 to this method will attempt to change the power state:
-    
+
     on
     off
     reset
@@ -230,7 +242,7 @@ For information on changing the hostname, see the network() method.
 
     # maybe ilo.somecompany.net
     my $domain_name = $ilo->domain_name;
- 
+
 Returns the DNS domain name of the remote machine.
 
 For information on changing the domain name, see the network() method.
@@ -239,7 +251,7 @@ For information on changing the domain name, see the network() method.
 
     # either 'Y' or 'N'
     print $ilo->dhcp_enabled;
-    
+
 Returns 'Y' if DHCP is enabled for the iLO networking, and 'N' if a
 static IP address is in use.
 
@@ -263,7 +275,7 @@ Returns the subnet mask of the iLO processor.
 
     # you guessed it, network dependent
     print $ilo->gateway;
-    
+
 Returns the default gateway in use for the iLO networking.
 
 =item network()
@@ -276,7 +288,7 @@ Returns the default gateway in use for the iLO networking.
         subnet_mask     => '255.255.255.0',
         gateway         => '192.168.128.1',
     }) or die $ilo->error;
-    
+
 Allows you to modify the network configuration of the iLO processor. The
 following parameters are allowed, see individual methods above for more detail:
 
@@ -294,8 +306,8 @@ Setting dhcp_enabled to 'yes' causes all IP related settings to have no effect.
 If the IP address is changed here, address() is updated with the new information.
 
 Networking changes cause the iLO processor to reset, it should become
-available again within 30 seconds. 
-   
+available again within 30 seconds.
+
 The rationale behind seperate methods for viewing and changing network
 settings is as follows:
 
@@ -337,7 +349,7 @@ Returns the serial number of the remote machine.
         print "Cores: ", $cpu->{cores}, "\n";
 
     }
-    
+
     # yields the following on a single CPU Xeon:
     #
     # Number of CPUs: 1
@@ -413,7 +425,7 @@ This method is not supported by pre-generation 4 hardware.
     my $eth1_mac = $ilo->mac02;
 
 Returns the mac address associated with the machine's secondary NIC (aka eth1).
-    
+
 This method is not supported by pre-generation 4 hardware.
 
 =item mac03()
@@ -437,7 +449,7 @@ via this method.
     my $ilo_mac = $ilo->macilo;
 
 Returns the mac address associated with the machine's iLO interface.
-    
+
 This method is not supported by pre-generation 4 hardware.
 
 =item biosdate()
@@ -485,8 +497,8 @@ Returns the release date of the system's BIOS.
     #     Unit: Percentage
     #   Status: Ok
 
-Returns arrayref containing the status of the fan block(s) installed in the 
-system. 'status' will be 'Ok' or 'Failed'. 
+Returns arrayref containing the status of the fan block(s) installed in the
+system. 'status' will be 'Ok' or 'Failed'.
 
 =item temperatures()
 
@@ -498,6 +510,8 @@ system. 'status' will be 'Ok' or 'Failed'.
         print "Location: ", $sensor->{location}, "\n";
         print "   Value: ", $sensor->{value},    "\n";
         print "    Unit: ", $sensor->{unit},     "\n";
+        print " Caution: ", $sensor->{caution},  "\n";
+        print "Critical: ", $sensor->{critical}, "\n";
         print "  Status: ", $sensor->{status},   "\n\n";
 
     }
@@ -506,30 +520,40 @@ system. 'status' will be 'Ok' or 'Failed'.
     # Location: I/O Board
     #    Value: 49
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 2
     # Location: Ambient
     #    Value: 19
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 3
     # Location: CPU 1
     #    Value: 32
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 4
     # Location: CPU 1
     #    Value: 32
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
     #
     #     Name: Temp 5
     # Location: Power Supply
     #    Value: 28
     #     Unit: Celsius
+    #  Caution: 80
+    # Critical: 90
     #   Status: Ok
 
 Returns arrayref containing the status of the temperature sensor(s) installed
@@ -551,7 +575,7 @@ critical threshold.
     # Status: Ok
 
 Returns arrayref containing the status of the power supplies installed in the
-system. 'status' will be 'Ok' or 'Failed'. 
+system. 'status' will be 'Ok' or 'Failed'.
 
 =back
 
@@ -564,7 +588,7 @@ system. 'status' will be 'Ok' or 'Failed'.
     # iLO web interface is hung, try resetting it
     $ilo->reset;
 
-Resets the iLO management processor. 
+Resets the iLO management processor.
 
 =item license()
 
@@ -594,7 +618,7 @@ Returns the version of iLO firmware currently running.
 
     # format is Nov 17 2006
     print $ilo->fw_date;
-    
+
 Returns the date the iLO firmware was released.
 
 =item ssh_status()
@@ -636,8 +660,8 @@ Changing the HTTP port causes the iLO processor to reset, it should become
 available again within about 30 seconds.
 
 =item https_port()
-   
-    # default is 443 
+
+    # default is 443
     print $ilo->https_port;
 
     $ilo->https_port(554);
@@ -672,16 +696,39 @@ eg. http, https, ssh, etc.
         admin    => 'Yes',
     });
 
-    # add a regular user
+    # add a regular user with no privileges
     $ilo->add_user({
-        name      => 'Jim Beam',
-        username  => 'jbeam',
-        password  => 'secret',
+        name     => 'Jim Beam',
+        username => 'jbeam',
+        password => 'secret',
     });
 
-Adds a user who will be able to log in to iLO via HTTPS, SSH, and any
-other interface. When adding a non-admin user, passing in the parameter
-admin => 'No' is also acceptable. 
+    # add a regular user with full privileges (aside from managing users)
+    #
+    # for a detailed discussion of what each privilege provides, please see
+    # the document 'HP Integrated Lights-Out Management Processor Scripting and
+    # Command Line Resource Guide'
+    #
+    # if unspecified, default for each privilege is 'No'.
+
+    $ilo->add_user({
+        name     => 'Jack Daniels',
+        username => 'jdaniels',
+        password => 'secret',
+        remote_console_privilege => 'Yes',
+        reset_privilege          => 'Yes',
+        virtual_media_privilege  => 'Yes',
+        config_ilo_privilege     => 'Yes',
+        view_logs_privilege      => 'Yes',
+        clear_logs_privilege     => 'Yes',
+        update_ilo_privilege     => 'Yes',
+    })
+
+Adds an iLO user. Admin users have full priveleges, including the ability to
+add and remove other users. Non-admin users have configurable privileges which
+default to disabled. The subset of permissions implemented is listed above.
+Users can log in to iLO via any interface, ie. HTTPS, SSH, etc. When adding a
+non-admin user, passing in the parameter admin => 'No' is also acceptable.
 
 =item mod_user()
 
@@ -699,7 +746,7 @@ admin => 'No' is also acceptable.
         username => 'guest',
         password => 'changem3!',
     });
-    
+
 Method for modifying existing user accounts. Currently this method is
 only able to change user's passwords; it cannot change permission
 levels.
@@ -756,7 +803,7 @@ An error will be returned if you pass an invalid state.
 
 General authentication error, eg. bad username or password when logging in.
 
-Could also mean you attempted to change the settings (eg. password) for a 
+Could also mean you attempted to change the settings (eg. password) for a
 user which doesn't exist
 
 =item C<Method not supported by this iLO version>
@@ -843,7 +890,7 @@ L<http://search.cpan.org/dist/Net-ILO>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2010 Nicholas Lewis, all rights reserved.
+Copyright 2011 Nicholas Lewis, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
