@@ -2500,7 +2500,7 @@ eg. http, https, ssh, etc.
         update_ilo_privilege     => 'Yes',
     })
 
-Adds an iLO user. Admin users have full priveleges, including the ability to
+Adds an iLO user. Admin users have full privileges, including the ability to
 add and remove other users. Non-admin users have configurable privileges which
 default to disabled. The subset of permissions implemented is listed above.
 Users can log in to iLO via any interface, ie. HTTPS, SSH, etc. When adding a
