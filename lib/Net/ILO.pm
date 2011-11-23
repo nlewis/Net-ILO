@@ -1224,6 +1224,44 @@ sub _generate_cmd {
 }
 
 
+#
+# _get_or_mod_global_settings()
+# ---------------------------
+sub _get_or_mod_global_settings {
+    my $self = shift;
+    my $param = shift;
+
+    if (@_) {
+        my $value = shift;
+
+        my $ilo_command = qq|
+            <RIB_INFO MODE="write">
+            <MOD_GLOBAL_SETTINGS>
+                <\U$param\E value="$value"/>
+            </MOD_GLOBAL_SETTINGS>
+            </RIB_INFO>
+        |;
+
+        $ilo_command    = $self->_wrap($ilo_command);
+        my $response    = $self->_send($ilo_command)    or return;
+        my $xml         = $self->_serialize($response)  or return;
+
+        if (my $errmsg = _check_errors($xml)) {
+            $self->error($errmsg);
+            return
+        }
+
+        $self->{$param} = $value;
+    }
+
+    if (not defined $self->{$param}) {
+        $self->_populate_global_settings or return;
+    }
+
+    return $self->{$param}
+}
+
+
 sub _length {
 
     # for iLO 3 we need to know the length of the XML for the
