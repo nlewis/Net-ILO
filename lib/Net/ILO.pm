@@ -1366,12 +1366,17 @@ sub _populate_global_settings {
         return;
     }
 
-    my @fields = qw( session_timeout    https_port      http_port
-                     ssh_port           ssh_status                );
+    my @fields = qw<
+         https_port  http_port  ssh_port  ssh_status  rbsu_post_ip  enforce_aes
+         f8_prompt_enabled  f8_login_required  authentication_failure_logging
+         remote_console_port  serial_cli_speed  serial_cli_status
+         session_timeout  min_password  ilo_funct_enabled  virtual_media_port
+    >;
 
     foreach my $field (@fields) {
 
-        $self->{$field} = $xml->{GET_GLOBAL_SETTINGS}->{uc($field)}->{VALUE};
+        $self->{$field} = $xml->{GET_GLOBAL_SETTINGS}{uc $field}{VALUE}
+            if exists $xml->{GET_GLOBAL_SETTINGS}{uc $field};
 
     }
 
