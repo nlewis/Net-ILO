@@ -250,6 +250,47 @@ sub gateway {
 }
 
 
+#
+# get_user()
+# --------
+sub get_user {
+    my $self = shift;
+
+    croak 'get_user() requires the username' unless @_;
+
+    my $user_login = shift;
+
+    # build the iLO command
+    my $ilo_command = qq|
+        <USER_INFO MODE="write">
+        <GET_USER USER_LOGIN="$user_login"/>
+        </USER_INFO>
+    |;
+
+    # send the command, read the response
+    $ilo_command    = $self->_wrap($ilo_command);
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if (my $errmsg = _check_errors($xml)) {
+        $self->error($errmsg);
+        return
+    }
+
+    my %user_info = (
+        name                        => $xml->{GET_USER}{USER_NAME},
+        username                    => $xml->{GET_USER}{USER_LOGIN},
+        admin                       => $xml->{GET_USER}{ADMIN_PRIV},
+        remote_console_privilege    => $xml->{GET_USER}{REMOTE_CONS_PRIV},
+        reset_privilege             => $xml->{GET_USER}{RESET_SERVER_PRIV},
+        virtual_media_privilege     => $xml->{GET_USER}{VIRTUAL_MEDIA_PRIV},
+        config_ilo_privilege        => $xml->{GET_USER}{CONFIG_ILO_PRIV},
+    );
+
+    return \%user_info
+}
+
+
 sub hostname {
 
     my $self = shift;
@@ -2464,6 +2505,30 @@ add and remove other users. Non-admin users have configurable privileges which
 default to disabled. The subset of permissions implemented is listed above.
 Users can log in to iLO via any interface, ie. HTTPS, SSH, etc. When adding a
 non-admin user, passing in the parameter admin => 'No' is also acceptable.
+
+
+=item get_user()
+
+    my $user_info = $ilo->get_user("cjohnson");
+
+    my @privileges = grep { $user_info->{$_} =~ /^Y/ } qw<
+        admin  remote_console_privilege  reset_privilege
+        virtual_media_privilege  config_ilo_privilege
+    >;
+
+    s/_privilege$// for @privileges;
+
+    print "user name: $user_info->{name}\n",
+          "     privileges: @privileges\n";
+
+    # user name: Cave Johnson
+    #      privileges: admin remote_console reset virtual_media config_ilo
+
+Method for fetching information about a user account. Returns a hashref
+with mostly the same fields than the ones you pass to C<add_user()>:
+C<name>, C<username>, C<admin>, C<remote_console_privilege>,
+C<reset_privilege>, C<virtual_media_privilege>, C<config_ilo_privilege>.
+
 
 =item mod_user()
 
