@@ -854,6 +854,24 @@ sub reset {
 }
 
 
+#
+# serial_cli_speed()
+# ----------------
+sub serial_cli_speed {
+    my $self = shift;
+    return $self->_get_or_mod_global_settings(serial_cli_speed => @_)
+}
+
+
+#
+# serial_cli_status()
+# ----------------
+sub serial_cli_status {
+    my $self = shift;
+    return $self->_get_or_mod_global_settings(serial_cli_status => @_)
+}
+
+
 sub serialID {
 
     my $self = shift;
@@ -2147,6 +2165,23 @@ cause you to lose connectivity.
     print $ilo->model;
 
 Returns the model name of the machine.
+
+=item serial_cli_speed()
+
+    $ilo->serial_cli_speed(2);  # set the CLI port speed to 19,200 bps
+
+Get or set the speed of the CLI port speed. The possible values are:
+0 (no change), 1 (9,600 bps), 2 (19,200 bps), 3 (38,400 bps),
+4 (57,600 bps), 5 (115,200 bps).
+
+=item serial_cli_status()
+
+    # print the status of the CLI
+    print $ilo->serial_cli_status;
+
+Get or set the status of the CLI. The possible values are: 0 (no change),
+1 (disabled), 2 (enabled, no authentication required), 3 (enabled,
+authentication required).
 
 =item serialID()
 
