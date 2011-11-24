@@ -885,6 +885,51 @@ sub serialID {
 }
 
 
+#
+# server_name()
+# ----------------
+sub server_name {
+    my $self = shift;
+    my $name = shift;
+    my $ilo_command;
+
+    if (defined $name) {
+        # build iLO set command
+        $ilo_command = qq|
+            <SERVER_INFO MODE="write">
+                <SERVER_NAME VALUE="$name"/>
+            </SERVER_INFO>
+        |;
+    }
+    else {
+        # return cached value if available
+        return $self->{server_name} if defined $self->{server_name};
+
+        # build iLO get command
+        $ilo_command = q|
+            <SERVER_INFO MODE="read">
+                <GET_SERVER_NAME/>
+            </SERVER_INFO>
+        |;
+    }
+
+    # send the command, read the response
+    $ilo_command    = $self->_wrap($ilo_command);
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if (my $errmsg = _check_errors($xml)) {
+        $self->error($errmsg);
+        return
+    }
+
+    # cache the value
+    $self->{server_name} = defined $name ? $name : $xml->{SERVER_NAME}{VALUE};
+
+    return $self->{server_name}
+}
+
+
 sub session_timeout {
 
     my $self = shift;
@@ -2165,6 +2210,19 @@ cause you to lose connectivity.
     print $ilo->model;
 
 Returns the model name of the machine.
+
+=item server_name()
+
+    # an unconfigured iLO will return a name based on the product
+    # number of the server, for example: DL365G1POA00
+    print $ilo->server_name;
+
+    # set the server name
+    $ilo->server_name("room04.aperturescience.com");
+
+Get or set the name of the server as it is known to iLO. This value
+is not forwarded to the host operating system, and therefore need not
+be a valid DNS compatible name.
 
 =item serial_cli_speed()
 
