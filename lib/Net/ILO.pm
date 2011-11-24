@@ -2115,7 +2115,7 @@ Method not supported by this iLO version
     # default is ILO0000000000 where 000... is your serial number
     my $machine_name = $ilo->hostname;
 
-Returns the hostname of the remote machine. This is also the name shown
+Returns the hostname of the iLO processor. This is also the name shown
 when logging in to the iLO interface, in the SSL cert, etc.
 
 For information on changing the hostname, see the network() method.
@@ -2125,7 +2125,7 @@ For information on changing the hostname, see the network() method.
     # maybe ilo.somecompany.net
     my $domain_name = $ilo->domain_name;
 
-Returns the DNS domain name of the remote machine.
+Returns the DNS domain name of the iLO processor.
 
 For information on changing the domain name, see the network() method.
 
@@ -2163,7 +2163,7 @@ Returns the default gateway in use for the iLO networking.
 =item network()
 
     $ilo->network({
-        name            => 'testbox01',
+        hostname        => 'testbox01',
         domain_name     => 'mydomain.com',
         dhcp_enabled    => 'no',
         ip_address      => '192.168.128.10',
@@ -2174,7 +2174,7 @@ Returns the default gateway in use for the iLO networking.
 Allows you to modify the network configuration of the iLO processor. The
 following parameters are allowed, see individual methods above for more detail:
 
-    name
+    hostname
     domain_name
     dhcp_enabled
     ip_address
