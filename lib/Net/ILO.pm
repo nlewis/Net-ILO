@@ -1654,11 +1654,11 @@ sub _populate_host_data {
 
     }
 
-    ($self->{mac01}  = lc($self->{mac01}))  =~ tr/-/:/;
-    ($self->{mac02}  = lc($self->{mac02}))  =~ tr/-/:/;
-    ($self->{mac03}  = lc($self->{mac03}))  =~ tr/-/:/;
-    ($self->{mac04}  = lc($self->{mac04}))  =~ tr/-/:/;
-    ($self->{macilo} = lc($self->{macilo})) =~ tr/-/:/;
+    ($self->{mac01}  = lc($self->{mac01}  || "")) =~ tr/-/:/;
+    ($self->{mac02}  = lc($self->{mac02}  || "")) =~ tr/-/:/;
+    ($self->{mac03}  = lc($self->{mac03}  || "")) =~ tr/-/:/;
+    ($self->{mac04}  = lc($self->{mac04}  || "")) =~ tr/-/:/;
+    ($self->{macilo} = lc($self->{macilo} || "")) =~ tr/-/:/;
 
     return 1;
 
