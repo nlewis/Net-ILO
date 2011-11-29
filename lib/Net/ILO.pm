@@ -159,6 +159,48 @@ sub dhcp_enabled {
 }
 
 
+#
+# dhcp_dns_server()
+# ---------------
+sub dhcp_dns_server {
+    my $self = shift;
+
+    if (not defined $self->{dhcp_dns_server}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{dhcp_dns_server}
+}
+
+
+#
+# dhcp_gateway()
+# ------------
+sub dhcp_gateway {
+    my $self = shift;
+
+    if (not defined $self->{dhcp_gateway}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{dhcp_gateway}
+}
+
+
+#
+# dhcp_sntp_settings()
+# ------------------
+sub dhcp_sntp_settings {
+    my $self = shift;
+
+    if (not defined $self->{dhcp_sntp_settings}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{dhcp_sntp_settings}
+}
+
+
 sub domain_name {
 
     my $self = shift;
@@ -615,6 +657,33 @@ sub network {
         my $subnet_mask = $arg_ref->{subnet_mask}   || $self->subnet_mask   or croak "subnet_mask not set";
         my $gateway     = $arg_ref->{gateway}       || $self->gateway       or croak "gateway not set";
 
+        my @other_params;
+        my @known_params = qw<
+            dhcp_gateway     dhcp_dns_server
+            prim_dns_server  sec_dns_server   ter_dns_server
+        >;
+        my @ilo3_params = qw<
+            dhcp_sntp_settings  sntp_server1  sntp_server2  timezone
+        >;
+
+        # construct the XML commands for the given parameters
+        for my $param (@known_params) {
+            push @other_params, qq|<\U$param\E value="$arg_ref->{$param}"/>|
+                if defined $arg_ref->{$param};
+        }
+
+        # detect iLO version if we don't know it yet
+        $self->_version($self->_detect_version) if not $self->_version;
+
+        # construct the XML commands for the given iLO3 parameters
+        if ($self->_version >= 3) {
+            for my $param (@ilo3_params) {
+                push @other_params, qq|<\U$param\E value="$arg_ref->{$param}"/>|
+                    if defined $arg_ref->{$param};
+            }
+        }
+
+        my $other_params = join "\n                ", "", @other_params;
         my $ilo_command = qq|
             <RIB_INFO MODE="write">
             <MOD_NETWORK_SETTINGS>
@@ -624,6 +693,7 @@ sub network {
                 <GATEWAY_IP_ADDRESS value="$gateway"/>
                 <DNS_NAME value="$dns_name"/>
                 <DOMAIN_NAME value="$domain_name"/>
+                $other_params
             </MOD_NETWORK_SETTINGS>
             </RIB_INFO>
         |;
@@ -822,6 +892,20 @@ sub power_supplies {
 }
 
 
+#
+# prim_dns_server()
+# ---------------
+sub prim_dns_server {
+    my $self = shift;
+
+    if (not defined $self->{prim_dns_server}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{prim_dns_server}
+}
+
+
 sub ramslots {
 
     my $self = shift;
@@ -855,6 +939,20 @@ sub reset {
 
 
 #
+# sec_dns_server()
+# --------------
+sub sec_dns_server {
+    my $self = shift;
+
+    if (not defined $self->{sec_dns_server}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{sec_dns_server}
+}
+
+
+#
 # serial_cli_speed()
 # ----------------
 sub serial_cli_speed {
@@ -865,7 +963,7 @@ sub serial_cli_speed {
 
 #
 # serial_cli_status()
-# ----------------
+# -----------------
 sub serial_cli_status {
     my $self = shift;
     return $self->_get_or_mod_global_settings(serial_cli_status => @_)
@@ -887,7 +985,7 @@ sub serialID {
 
 #
 # server_name()
-# ----------------
+# -----------
 sub server_name {
     my $self = shift;
     my $name = shift;
@@ -940,6 +1038,34 @@ sub session_timeout {
 
     return $self->{session_timeout};
 
+}
+
+
+#
+# sntp_server1()
+# ------------
+sub sntp_server1 {
+    my $self = shift;
+
+    if (not defined $self->{sntp_server1}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{sntp_server1}
+}
+
+
+#
+# sntp_server2()
+# ------------
+sub sntp_server2 {
+    my $self = shift;
+
+    if (not defined $self->{sntp_server2}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{sntp_server2}
 }
 
 
@@ -1044,6 +1170,34 @@ sub temperatures {
 
     return $self->{temperatures};
 
+}
+
+
+#
+# ter_dns_server()
+# --------------
+sub ter_dns_server {
+    my $self = shift;
+
+    if (not defined $self->{ter_dns_server}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{ter_dns_server}
+}
+
+
+#
+# timezone()
+# --------
+sub timezone {
+    my $self = shift;
+
+    if (not defined $self->{timezone}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{timezone}
 }
 
 
@@ -1681,12 +1835,16 @@ sub _populate_network_settings {
 
     my @fields = qw( dhcp_dns_server     dhcp_gateway    dns_name
                      dhcp_domain_name    ip_address      domain_name
-                     dhcp_enable         subnet_mask     gateway_ip_address );
+                     dhcp_enable         subnet_mask     gateway_ip_address
+                     dhcp_gateway        dhcp_dns_server
+                     prim_dns_server     sec_dns_server  ter_dns_server
+                     dhcp_sntp_settings  sntp_server1    sntp_server2
+                     timezone );
 
     foreach my $field (@fields) {
-
-        $self->{$field} = $xml->{GET_NETWORK_SETTINGS}->{uc($field)}->{VALUE};
-
+        my $xml_field = uc $field;
+        $self->{$field} = $xml->{GET_NETWORK_SETTINGS}->{$xml_field}->{VALUE}
+            if exists $xml->{GET_NETWORK_SETTINGS}{$xml_field};
     }
 
     return 1;
@@ -2160,6 +2318,52 @@ Returns the subnet mask of the iLO processor.
 
 Returns the default gateway in use for the iLO networking.
 
+=item dhcp_gateway()
+
+    # either 'Y' or 'N'
+    print $ilo->dhcp_gateway;
+
+Returns "Y" if iLO is to get the default gateway from the DHCP server,
+"N" if static information are used.
+
+=item dhcp_dns_server()
+
+    # either 'Y' or 'N'
+    print $ilo->dhcp_sntp_settings;
+
+Returns "Y" if iLO is to get the DNS servers from the DHCP server,
+"N" if static information are used.
+
+=item prim_dns_server(), sec_dns_server(), ter_dns_server()
+
+    # the IP address of the first DNS server
+    print $ilo->prim_dns_server;
+
+Return the IP address of the primary, secondary or tertiary DNS server,
+respectively.
+
+=item dhcp_sntp_settings()
+
+    # either 'Y' or 'N'
+    print $ilo->dhcp_sntp_settings;
+
+Returns "Y" if iLO is to get the SNTP time servers and timezone from
+the DHCP server, "N" if static information are used.
+
+=item sntp_server1(), sntp_server2()
+
+    # the IP address of the first SNTP server
+    print $ilo->sntp_server1;
+
+Returns the IP address of the corresponding SNTP server.
+
+=item timezone()
+
+    # the timezone, e.g. "Europe/Paris"
+    print $ilo->timezone;
+
+Returns the timezone.
+
 =item network()
 
     $ilo->network({
@@ -2180,6 +2384,15 @@ following parameters are allowed, see individual methods above for more detail:
     ip_address
     subnet_mask
     gateway
+    dhcp_gateway
+    dhcp_dns_server
+    prim_dns_server
+    sec_dns_server
+    ter_dns_server
+    dhcp_sntp_settings
+    sntp_server1
+    sntp_server2
+    timezone
 
 If any parameter is not specified, current values are used.
 
