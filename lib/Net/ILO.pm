@@ -9,7 +9,7 @@ use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
 
-our $VERSION = '0.54';
+our $VERSION = '0.54_003';
 
 
 my $METHOD_UNSUPPORTED = 'Method not supported by this iLO version';
