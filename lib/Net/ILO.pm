@@ -98,6 +98,66 @@ sub biosdate {
 }
 
 
+sub cdrom_applet {
+	
+    my $self = shift;
+
+    if (!$self->{cdrom_applet}) {
+        $self->_populate_vm_data('cdrom') or return;
+    }
+
+    return $self->{cdrom_applet};
+}
+
+
+sub cdrom_boot_option {
+
+    my $self = shift;
+
+    if (!$self->{cdrom_boot_option}) {
+        $self->_populate_vm_data('cdrom') or return;
+    }
+
+    return $self->{cdrom_boot_option};	
+}
+
+
+sub cdrom_image_inserted {
+
+    my $self = shift;
+
+    if (!$self->{cdrom_image_inserted}) {
+        $self->_populate_vm_data('cdrom') or return;
+    }
+
+    return $self->{cdrom_image_inserted};
+}
+
+
+sub cdrom_image_url {
+
+    my $self = shift;
+
+    if (!$self->{cdrom_image_url}) {
+        $self->_populate_vm_data('cdrom') or return;
+    }
+
+    return $self->{cdrom_image_url};
+}
+
+
+sub cdrom_write_protect {
+
+    my $self = shift;
+
+    if (!$self->{cdrom_write_protect}) {
+        $self->_populate_vm_data('cdrom') or return;
+    }
+
+    return $self->{cdrom_write_protect};	
+}
+
+
 sub cpus {
 
     my $self = shift;
@@ -172,6 +232,48 @@ sub domain_name {
 }
 
 
+sub eject_virtual_media {
+
+	my $self = shift;
+	
+    if (@_) {
+
+        my $arg_ref = shift;
+
+        my $device        = $arg_ref->{device}    or croak 'device required';
+        
+		if ($device ne 'FLOPPY' and $device ne 'CDROM') {
+			croak 'device must be either FLOPPY or CDROM';
+			return;
+		}
+
+        my $ilo_command = qq|
+			<RIB_INFO MODE="write">
+				<EJECT_VIRTUAL_MEDIA DEVICE="$device"/>
+			</RIB_INFO>
+        |;
+
+        $ilo_command    = $self->_wrap($ilo_command);
+        my $response    = $self->_send($ilo_command)    or return;
+        my $xml         = $self->_serialize($response)  or return;
+
+        if ( my $errmsg = _check_errors($xml) ) {
+            $self->error($errmsg);
+            return;
+        }
+
+    }
+    else {
+
+        croak 'eject_virtual_media() requires parameters';
+
+    }
+
+    return 1;
+	
+}
+
+
 sub error {
 
     my $self = shift;
@@ -195,6 +297,66 @@ sub fans {
 
     return $self->{fans};
 
+}
+
+
+sub floppy_applet {
+
+    my $self = shift;
+
+    if (!$self->{floppy_applet}) {
+        $self->_populate_vm_data('floppy') or return;
+    }
+
+    return $self->{floppy_applet};		
+}
+
+
+sub floppy_boot_option {
+
+    my $self = shift;
+
+    if (!$self->{floppy_boot_option}) {
+        $self->_populate_vm_data('floppy') or return;
+    }
+
+    return $self->{floppy_boot_option};		
+}
+
+
+sub floppy_image_inserted {
+
+    my $self = shift;
+
+    if (!$self->{floppy_image_inserted}) {
+        $self->_populate_vm_data('floppy') or return;
+    }
+
+    return $self->{floppy_image_inserted};		
+}
+
+
+sub floppy_image_url {
+
+    my $self = shift;
+
+    if (!$self->{floppy_image_url}) {
+        $self->_populate_vm_data('floppy') or return;
+    }
+
+    return $self->{floppy_image_url};		
+}
+
+
+sub floppy_write_protect {
+
+    my $self = shift;
+
+    if (!$self->{floppy_write_protect}) {
+        $self->_populate_vm_data('floppy') or return;
+    }
+
+    return $self->{floppy_write_protect};		
 }
 
 
@@ -246,6 +408,44 @@ sub gateway {
     }
 
     return $self->{gateway_ip_address};
+
+}
+
+
+sub get_vm_status {
+	
+	my $self = shift;
+	
+	my $device = shift;
+	
+	if ($device ne 'FLOPPY' and $device ne 'CDROM') {
+		croak 'device must be either FLOPPY or CDROM';
+		return;
+	}
+	
+	$device = lc($device);
+	
+	if (   !$self->{"${device}_applet"} 
+		|| !$self->{"${device}_boot_option"} 
+		|| !$self->{"${device}_image_inserted"}
+		|| !$self->{"${device}_image_url"}
+		|| !$self->{"${device}_write_protect"}
+		) {
+	
+		$self->_populate_vm_data($device) or return;
+	}
+
+	my %hash = (
+	
+				'vm_applet'          =>  $self->{"${device}_applet"},
+				'boot_option'        =>  $self->{"${device}_boot_option"},
+				'image_inserted'     =>  $self->{"${device}_image_inserted"},
+				'image_url'          =>  $self->{"${device}_image_url"},
+				'write_protect'      =>  $self->{"${device}_write_protect"},
+				'device'             =>  uc($device),
+				);
+				
+	return %hash;
 
 }
 
@@ -340,6 +540,54 @@ sub https_port {
 
     return $self->{https_port};
 
+}
+
+
+sub insert_virtual_media {
+
+	my $self = shift;
+	
+    if (@_) {
+
+        my $arg_ref = shift;
+
+        my $device        = $arg_ref->{device}    or croak 'device required';
+        my $image_url     = $arg_ref->{image_url} or croak 'image_url required';
+        
+		if ($device ne 'FLOPPY' and $device ne 'CDROM') {
+			croak 'device must be either FLOPPY or CDROM';
+			return;
+		}
+		
+		if ($image_url !~ /^http[s]?:\/\// ) {
+			croak 'illegal url format';
+			return;
+		}
+
+        my $ilo_command = qq|
+			<RIB_INFO MODE = "write">
+				<INSERT_VIRTUAL_MEDIA DEVICE="$device" IMAGE_URL="$image_url"/>
+			</RIB_INFO>
+        |;
+
+        $ilo_command    = $self->_wrap($ilo_command);
+        my $response    = $self->_send($ilo_command)    or return;
+        my $xml         = $self->_serialize($response)  or return;
+
+        if ( my $errmsg = _check_errors($xml) ) {
+            $self->error($errmsg);
+            return;
+        }
+
+    }
+    else {
+
+        croak 'insert_virtual_media() requires parameters';
+
+    }
+
+    return 1;
+	
 }
 
 
@@ -839,6 +1087,74 @@ sub session_timeout {
 }
 
 
+sub set_vm_status {
+
+    my $self = shift;
+
+	if (@_) {
+
+        my $arg_ref = shift;
+
+		my $device         = $arg_ref->{device}          or croak "device not set";
+        my $boot_option    = $arg_ref->{boot_option}     or croak "boot_option not set";	
+        my $write_protect  = $arg_ref->{write_protect}   || 'Y';
+        
+  		if ($device ne 'FLOPPY' and $device ne 'CDROM') {
+			croak 'device must be either FLOPPY or CDROM';
+			return;
+		}
+		
+		if (    $boot_option ne 'CONNECT'
+		    and $boot_option ne 'DISCONNECT'
+		    and $boot_option ne 'BOOT_ALWAYS'
+		    and $boot_option ne 'BOOT_ONCE'
+		    and $boot_option ne 'NO_BOOT'
+		    ) {
+		 
+			croak 'unknown boot_option';
+			return;
+		}
+		
+		if ($write_protect eq 'Y') {
+			$write_protect = 'YES';
+		}
+		elsif ($write_protect eq 'N') {
+			$write_protect = 'NO';
+		}
+		else {
+			croak 'write_protect must be either Y or N';
+			return;
+		}
+
+        my $ilo_command = qq|
+			<RIB_INFO MODE="write">
+                <SET_VM_STATUS DEVICE="$device">
+					<VM_BOOT_OPTION VALUE="$boot_option"/>
+					<VM_WRITE_PROTECT VALUE="$write_protect" />
+				</SET_VM_STATUS>
+			</RIB_INFO>
+        |;
+
+        $ilo_command    = $self->_wrap($ilo_command);
+        my $response    = $self->_send($ilo_command)    or return;
+        my $xml         = $self->_serialize($response)  or return;
+
+        if ( my $errmsg = _check_errors($xml) ) {
+            $self->error($errmsg);
+            return;
+        }
+
+    }
+    else {
+
+        croak 'set_vm_status() requires parameters';
+
+    }
+
+    return 1;
+}
+
+
 sub ssh_port {
 
     my $self = shift;
@@ -1134,6 +1450,14 @@ sub _generate_cmd {
 
         'get_network_settings'  => qq( <RIB_INFO MODE="read">
                                        <GET_NETWORK_SETTINGS/>
+                                       </RIB_INFO> ),
+
+        'get_vm_status_cdrom'   => qq( <RIB_INFO MODE="read">
+                                       <GET_VM_STATUS DEVICE="CDROM"/>
+                                       </RIB_INFO> ),
+                                       
+        'get_vm_status_floppy'  => qq( <RIB_INFO MODE="read">
+                                       <GET_VM_STATUS DEVICE="FLOPPY"/>
                                        </RIB_INFO> ),
 
         'power_consumption'     => qq( <SERVER_INFO MODE="read">
@@ -1541,6 +1865,35 @@ sub _populate_network_settings {
         $self->{$field} = $xml->{GET_NETWORK_SETTINGS}->{uc($field)}->{VALUE};
 
     }
+
+    return 1;
+
+}
+
+
+sub _populate_vm_data {
+	
+    my $self = shift;
+    
+    my $device = shift;
+    
+    return unless defined $device && ($device eq 'cdrom' or $device eq 'floppy');
+
+    my $ilo_command = $self->_generate_cmd("get_vm_status_${device}"); # get_vm_status_cdrom, get_vm_status_floppy
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+    $self->{"${device}_applet"}         = $xml->{GET_VM_STATUS}->{VM_APPLET};
+    $self->{"${device}_boot_option"}    = $xml->{GET_VM_STATUS}->{BOOT_OPTION};
+    $self->{"${device}_write_protect"}  = substr($xml->{GET_VM_STATUS}->{WRITE_PROTECT}, 0,1);  # YES -> Y, NO -> N
+    $self->{"${device}_image_inserted"} = substr($xml->{GET_VM_STATUS}->{IMAGE_INSERTED}, 0,1); # YES -> Y, NO -> N
+    $self->{"${device}_image_url"}      = $xml->{GET_VM_STATUS}->{IMAGE_URL};
 
     return 1;
 
@@ -2499,6 +2852,135 @@ logging in will be updated automatically.
 
 Removes an existing user from the iLO.
 
+=back
+
+=head2 VIRTUAL MEDIA MANAGEMENT
+
+=over
+
+=item insert_virtual_media()
+
+    # inserts a virtual media
+    $ilo->insert_virtual_media({
+        device    => 'CDROM',
+        image_url => 'http://10.20.30.40/debian/squeeze.iso',
+    });
+    
+    # device must either be FLOPPY or CDROM
+    # image_url has the following format: protocol://username:password@hostname:port/filename,cgi-helper
+    # protocol can either be http or https
+    # username, password, port and cgi-helper are optional
+     
+=item eject_virtual_media()
+
+    # ejects a virtual media
+    $ilo->eject_virtual_media({
+        device    => 'CDROM',
+    });
+    
+    # device must either be FLOPPY or CDROM
+    
+=item get_vm_status()
+
+    # get virtual media status
+    # parameters are 'cdrom' or 'floppy'
+    # returns a hash
+
+    my hash = get_vm_status('cdrom');
+    
+    	{
+          'write_protect' => 'Y',
+          'vm_applet' => 'DISCONNECTED',
+          'image_inserted' => 'Y',
+          'image_url' => 'http://10.20.30.40/rhel-server-6.2-x86_64-dvd.iso',
+          'boot_option' => 'NO_BOOT',
+          'device' => 'CDROM'
+        };
+        
+vm_applet will never show status CONNECTED while you use functions provided inside this module.
+It only show status CONNECTED when you click the connect button inside the ilo gui. But your
+server will still boot from your image when you set boot_option to CONNECT. I was a bit confused 
+by this fact and that's why I write it here.  
+
+=item set_vm_status()
+
+    # set virtual media status
+	
+    # device:        FLOPPY | CDROM
+    # boot_option:   BOOT_ALWAYS, BOOT_ONCE, NO_BOOT, CONNECT or DISCONNECT
+    # write_protect: Y | N (optional, default Y)
+    #
+    # CONNECT sets vm_boot_option to BOOT_ALWAYS
+    # DISCONNECT sets vm_boot_option to NO_BOOT and IMAGE_INSERTED to NO
+    
+    set_vm_status({
+          'device' => 'CDROM'
+          'boot_option' => 'CONNECT',
+          'write_protect' => 'Y',
+        };
+);
+
+CONNECT sets the boot_option to CONNECT. The Virtual Media device is immediately
+connected to the server. Setting the boot_option to CONNECT is equivalent to clicking the
+device Connect button on the Virtual Media Applet. After setting the boot_option to
+CONNECT, the get_vm_status function will show the boot_option as BOOT_ALWAYS. This is by design 
+and shows that the Virtual Media device is connected like the Virtual Media device in the applet 
+which with always be connected during all server boots.
+
+        
+write_protect sets the write protect flag value for the Virtual Floppy. This value is not significant 
+for the Virtual Media CD-ROM
+
+    
+=item cdrom_applet()
+
+    # CONNECTED or DISCONNECTED
+    print $ilo->cdrom_applet;
+    
+=item cdrom_boot_option()
+
+    print $ilo->cdrom_boot_option;
+    
+=item cdrom_image_inserted()
+
+    # 'Y' or 'N'
+    print $ilo->cdrom_image_inserted;
+    
+=item cdrom_image_url()
+
+    # something like http://10.20.30.40/bootfloppy.img
+    print $ilo->cdrom_image_url;
+    
+=item cdrom_write_protect()
+
+    # 'Y' or 'N'
+    print $ilo->cdrom_write_protect;
+
+=item floppy_applet()
+
+    # CONNECTED or DISCONNECTED
+    print $ilo->floppy_applet;
+    
+=item floppy_boot_option()
+
+    # BOOT_ALWAYS | BOOT_ONCE | NO_BOOT
+    print $ilo->floppy_boot_option;
+    
+=item floppy_image_inserted()
+
+    # 'Y' or 'N'
+    print $ilo->floppy_image_inserted;
+    
+=item floppy_image_url()
+
+    # something like http://10.20.30.40/bootfloppy.img
+    print $ilo->floppy_image_url;
+    
+=item floppy_write_protect()
+
+    # 'Y' or 'N'
+    print $ilo->floppy_write_protect;
+     
 =back
 
 =head2 MISCELLANEOUS
