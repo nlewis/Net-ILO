@@ -198,6 +198,25 @@ sub fans {
 }
 
 
+sub backplanes {
+
+   my $self = shift;
+
+   if (!$self->{backplanes}) {
+       $self->_populate_embedded_health or return;
+   }
+
+   if ($self->{backplanes}) {
+       return $self->{backplanes};
+   }
+   else {
+       $self->error($METHOD_UNSUPPORTED);
+       return;
+   }
+
+}
+
+
 sub fw_date {
 
     my $self = shift;
@@ -1222,8 +1241,36 @@ sub _populate_embedded_health {
     }
 
     my $fans            = $xml->{GET_EMBEDDED_HEALTH_DATA}->{FANS}->{FAN};
+    my $backplanes      = $xml->{GET_EMBEDDED_HEALTH_DATA}->{DRIVES}->{BACKPLANE};
     my $power_supplies  = $xml->{GET_EMBEDDED_HEALTH_DATA}->{POWER_SUPPLIES}->{SUPPLY};
     my $temperatures    = $xml->{GET_EMBEDDED_HEALTH_DATA}->{TEMPERATURE}->{TEMP};
+
+    foreach my $backplane (@$backplanes) {
+
+        my $firmware_version = $backplane->{FIRMWARE_VERSION}->{VALUE};
+        my $enclosure_adr    = $backplane->{ENCLOSURE_ADDR}->{VALUE};
+        my @disks;
+
+        next unless ( ($firmware_version =~ /^\d+\.\d+$/) && ($enclosure_adr =~ /^\d+$/) );
+
+        foreach my $index ( 0..$#{$backplane->{ DRIVE_BAY }} ) {
+            push( @disks, {
+                drive_bay  => $backplane->{ DRIVE_BAY }[ $index ]->{ VALUE }, 
+                product_id => $backplane->{ PRODUCT_ID }[ $index ]->{ VALUE },
+                status     => $backplane->{ STATUS }[ $index ]->{ VALUE }, 
+                isOk       => ( $backplane->{ STATUS }[ $index ]->{ VALUE } eq "Ok" ), 
+                uid_led    => $backplane->{ UID_LED }[ $index ]->{ VALUE }, 
+            });
+
+        }
+
+        push( @{$self->{backplanes}}, {
+            firmware_version => $firmware_version,
+            enclosure_adr    => $enclosure_adr,
+            disks            => \@disks,
+        });
+
+    }
 
     foreach my $fan (@$fans) {
 
