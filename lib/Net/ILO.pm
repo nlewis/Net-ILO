@@ -269,6 +269,47 @@ sub gateway {
 }
 
 
+#
+# get_user()
+# --------
+sub get_user {
+    my $self = shift;
+
+    croak 'get_user() requires the username' unless @_;
+
+    my $user_login = shift;
+
+    # build the iLO command
+    my $ilo_command = qq|
+        <USER_INFO MODE="write">
+        <GET_USER USER_LOGIN="$user_login"/>
+        </USER_INFO>
+    |;
+
+    # send the command, read the response
+    $ilo_command    = $self->_wrap($ilo_command);
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if (my $errmsg = _check_errors($xml)) {
+        $self->error($errmsg);
+        return
+    }
+
+    my %user_info = (
+        name                        => $xml->{GET_USER}{USER_NAME},
+        username                    => $xml->{GET_USER}{USER_LOGIN},
+        admin                       => $xml->{GET_USER}{ADMIN_PRIV},
+        remote_console_privilege    => $xml->{GET_USER}{REMOTE_CONS_PRIV},
+        reset_privilege             => $xml->{GET_USER}{RESET_SERVER_PRIV},
+        virtual_media_privilege     => $xml->{GET_USER}{VIRTUAL_MEDIA_PRIV},
+        config_ilo_privilege        => $xml->{GET_USER}{CONFIG_ILO_PRIV},
+    );
+
+    return \%user_info
+}
+
+
 sub hostname {
 
     my $self = shift;
@@ -832,6 +873,24 @@ sub reset {
 }
 
 
+#
+# serial_cli_speed()
+# ----------------
+sub serial_cli_speed {
+    my $self = shift;
+    return $self->_get_or_mod_global_settings(serial_cli_speed => @_)
+}
+
+
+#
+# serial_cli_status()
+# ----------------
+sub serial_cli_status {
+    my $self = shift;
+    return $self->_get_or_mod_global_settings(serial_cli_status => @_)
+}
+
+
 sub serialID {
 
     my $self = shift;
@@ -842,6 +901,51 @@ sub serialID {
 
     return $self->{serialID};
 
+}
+
+
+#
+# server_name()
+# ----------------
+sub server_name {
+    my $self = shift;
+    my $name = shift;
+    my $ilo_command;
+
+    if (defined $name) {
+        # build iLO set command
+        $ilo_command = qq|
+            <SERVER_INFO MODE="write">
+                <SERVER_NAME VALUE="$name"/>
+            </SERVER_INFO>
+        |;
+    }
+    else {
+        # return cached value if available
+        return $self->{server_name} if defined $self->{server_name};
+
+        # build iLO get command
+        $ilo_command = q|
+            <SERVER_INFO MODE="read">
+                <GET_SERVER_NAME/>
+            </SERVER_INFO>
+        |;
+    }
+
+    # send the command, read the response
+    $ilo_command    = $self->_wrap($ilo_command);
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if (my $errmsg = _check_errors($xml)) {
+        $self->error($errmsg);
+        return
+    }
+
+    # cache the value
+    $self->{server_name} = defined $name ? $name : $xml->{SERVER_NAME}{VALUE};
+
+    return $self->{server_name}
 }
 
 
@@ -1202,6 +1306,44 @@ sub _generate_cmd {
 }
 
 
+#
+# _get_or_mod_global_settings()
+# ---------------------------
+sub _get_or_mod_global_settings {
+    my $self = shift;
+    my $param = shift;
+
+    if (@_) {
+        my $value = shift;
+
+        my $ilo_command = qq|
+            <RIB_INFO MODE="write">
+            <MOD_GLOBAL_SETTINGS>
+                <\U$param\E value="$value"/>
+            </MOD_GLOBAL_SETTINGS>
+            </RIB_INFO>
+        |;
+
+        $ilo_command    = $self->_wrap($ilo_command);
+        my $response    = $self->_send($ilo_command)    or return;
+        my $xml         = $self->_serialize($response)  or return;
+
+        if (my $errmsg = _check_errors($xml)) {
+            $self->error($errmsg);
+            return
+        }
+
+        $self->{$param} = $value;
+    }
+
+    if (not defined $self->{$param}) {
+        $self->_populate_global_settings or return;
+    }
+
+    return $self->{$param}
+}
+
+
 sub _length {
 
     # for iLO 3 we need to know the length of the XML for the
@@ -1372,12 +1514,17 @@ sub _populate_global_settings {
         return;
     }
 
-    my @fields = qw( session_timeout    https_port      http_port
-                     ssh_port           ssh_status                );
+    my @fields = qw<
+         https_port  http_port  ssh_port  ssh_status  rbsu_post_ip  enforce_aes
+         f8_prompt_enabled  f8_login_required  authentication_failure_logging
+         remote_console_port  serial_cli_speed  serial_cli_status
+         session_timeout  min_password  ilo_funct_enabled  virtual_media_port
+    >;
 
     foreach my $field (@fields) {
 
-        $self->{$field} = $xml->{GET_GLOBAL_SETTINGS}->{uc($field)}->{VALUE};
+        $self->{$field} = $xml->{GET_GLOBAL_SETTINGS}{uc $field}{VALUE}
+            if exists $xml->{GET_GLOBAL_SETTINGS}{uc $field};
 
     }
 
@@ -1554,11 +1701,11 @@ sub _populate_host_data {
 
     }
 
-    ($self->{mac01}  = lc($self->{mac01}))  =~ tr/-/:/;
-    ($self->{mac02}  = lc($self->{mac02}))  =~ tr/-/:/;
-    ($self->{mac03}  = lc($self->{mac03}))  =~ tr/-/:/;
-    ($self->{mac04}  = lc($self->{mac04}))  =~ tr/-/:/;
-    ($self->{macilo} = lc($self->{macilo})) =~ tr/-/:/;
+    ($self->{mac01}  = lc($self->{mac01}  || "")) =~ tr/-/:/;
+    ($self->{mac02}  = lc($self->{mac02}  || "")) =~ tr/-/:/;
+    ($self->{mac03}  = lc($self->{mac03}  || "")) =~ tr/-/:/;
+    ($self->{mac04}  = lc($self->{mac04}  || "")) =~ tr/-/:/;
+    ($self->{macilo} = lc($self->{macilo} || "")) =~ tr/-/:/;
 
     return 1;
 
@@ -2015,7 +2162,7 @@ Method not supported by this iLO version
     # default is ILO0000000000 where 000... is your serial number
     my $machine_name = $ilo->hostname;
 
-Returns the hostname of the remote machine. This is also the name shown
+Returns the hostname of the iLO processor. This is also the name shown
 when logging in to the iLO interface, in the SSL cert, etc.
 
 For information on changing the hostname, see the network() method.
@@ -2025,7 +2172,7 @@ For information on changing the hostname, see the network() method.
     # maybe ilo.somecompany.net
     my $domain_name = $ilo->domain_name;
 
-Returns the DNS domain name of the remote machine.
+Returns the DNS domain name of the iLO processor.
 
 For information on changing the domain name, see the network() method.
 
@@ -2063,7 +2210,7 @@ Returns the default gateway in use for the iLO networking.
 =item network()
 
     $ilo->network({
-        name            => 'testbox01',
+        hostname        => 'testbox01',
         domain_name     => 'mydomain.com',
         dhcp_enabled    => 'no',
         ip_address      => '192.168.128.10',
@@ -2074,7 +2221,7 @@ Returns the default gateway in use for the iLO networking.
 Allows you to modify the network configuration of the iLO processor. The
 following parameters are allowed, see individual methods above for more detail:
 
-    name
+    hostname
     domain_name
     dhcp_enabled
     ip_address
@@ -2110,6 +2257,36 @@ cause you to lose connectivity.
     print $ilo->model;
 
 Returns the model name of the machine.
+
+=item server_name()
+
+    # an unconfigured iLO will return a name based on the product
+    # number of the server, for example: DL365G1POA00
+    print $ilo->server_name;
+
+    # set the server name
+    $ilo->server_name("room04.aperturescience.com");
+
+Get or set the name of the server as it is known to iLO. This value
+is not forwarded to the host operating system, and therefore need not
+be a valid DNS compatible name.
+
+=item serial_cli_speed()
+
+    $ilo->serial_cli_speed(2);  # set the CLI port speed to 19,200 bps
+
+Get or set the speed of the CLI port speed. The possible values are:
+0 (no change), 1 (9,600 bps), 2 (19,200 bps), 3 (38,400 bps),
+4 (57,600 bps), 5 (115,200 bps).
+
+=item serial_cli_status()
+
+    # print the status of the CLI
+    print $ilo->serial_cli_status;
+
+Get or set the status of the CLI. The possible values are: 0 (no change),
+1 (disabled), 2 (enabled, no authentication required), 3 (enabled,
+authentication required).
 
 =item serialID()
 
@@ -2506,11 +2683,35 @@ eg. http, https, ssh, etc.
         update_ilo_privilege     => 'Yes',
     })
 
-Adds an iLO user. Admin users have full priveleges, including the ability to
+Adds an iLO user. Admin users have full privileges, including the ability to
 add and remove other users. Non-admin users have configurable privileges which
 default to disabled. The subset of permissions implemented is listed above.
 Users can log in to iLO via any interface, ie. HTTPS, SSH, etc. When adding a
 non-admin user, passing in the parameter admin => 'No' is also acceptable.
+
+
+=item get_user()
+
+    my $user_info = $ilo->get_user("cjohnson");
+
+    my @privileges = grep { $user_info->{$_} =~ /^Y/ } qw<
+        admin  remote_console_privilege  reset_privilege
+        virtual_media_privilege  config_ilo_privilege
+    >;
+
+    s/_privilege$// for @privileges;
+
+    print "user name: $user_info->{name}\n",
+          "     privileges: @privileges\n";
+
+    # user name: Cave Johnson
+    #      privileges: admin remote_console reset virtual_media config_ilo
+
+Method for fetching information about a user account. Returns a hashref
+with mostly the same fields than the ones you pass to C<add_user()>:
+C<name>, C<username>, C<admin>, C<remote_console_privilege>,
+C<reset_privilege>, C<virtual_media_privilege>, C<config_ilo_privilege>.
+
 
 =item mod_user()
 
