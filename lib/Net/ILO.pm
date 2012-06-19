@@ -260,6 +260,25 @@ sub backplanes {
 }
 
 
+sub controllers {
+
+   my $self = shift;
+
+   if (!$self->{controllers}) {
+       $self->_populate_embedded_health or return;
+   }
+
+   if ($self->{controllers}) {
+       return $self->{controllers};
+   }
+   else {
+       $self->error($METHOD_UNSUPPORTED);
+       return;
+   }
+
+}
+
+
 sub fw_date {
 
     my $self = shift;
@@ -1537,17 +1556,80 @@ sub _populate_embedded_health {
         return;
     }
 
+    my $backplanes;
+    my $controllers;
     my $fans            = $xml->{GET_EMBEDDED_HEALTH_DATA}->{FANS}->{FAN};
-    my $backplanes      = $xml->{GET_EMBEDDED_HEALTH_DATA}->{DRIVES}->{BACKPLANE};
     my $power_supplies  = $xml->{GET_EMBEDDED_HEALTH_DATA}->{POWER_SUPPLIES}->{SUPPLY};
     my $temperatures    = $xml->{GET_EMBEDDED_HEALTH_DATA}->{TEMPERATURE}->{TEMP};
 
+    $backplanes         = $xml->{GET_EMBEDDED_HEALTH_DATA}->{DRIVES}->{BACKPLANE} if ( exists($xml->{GET_EMBEDDED_HEALTH_DATA}->{DRIVES}));
+    $controllers        = $xml->{GET_EMBEDDED_HEALTH_DATA}->{STORAGE}->{CONTROLLER} if ( exists($xml->{GET_EMBEDDED_HEALTH_DATA}->{STORAGE}) );
+
+    $fans               = [] unless defined( $fans );
+    $backplanes         = [] unless defined( $backplanes );
+    $controllers        = [] unless defined( $controllers );
+    $power_supplies     = [] unless defined( $power_supplies );
+    $temperatures       = [] unless defined( $temperatures );
+    
     # XML::Simple makes wrong guesses if e.g. only one FAN is present...
     $fans               = [ $fans           ] unless reftype( $fans )           eq 'ARRAY';
     $backplanes         = [ $backplanes     ] unless reftype( $backplanes )     eq 'ARRAY';
+    $controllers        = [ $controllers    ] unless reftype( $controllers )    eq 'ARRAY';
     $power_supplies     = [ $power_supplies ] unless reftype( $power_supplies ) eq 'ARRAY';
     $temperatures       = [ $temperatures   ] unless reftype( $temperatures )   eq 'ARRAY';
     
+    foreach my $controller (@$controllers) {
+
+        my @logical_drives;
+        my $logical_drives;
+        $logical_drives = $controller->{ LOGICAL_DRIVE } if ( exists( $controller->{ LOGICAL_DRIVE } ) );
+        $logical_drives = [] unless defined( $logical_drives );
+        $logical_drives = [ $logical_drives ] unless reftype( $logical_drives ) eq 'ARRAY';
+
+        foreach my $logical_drive ( @$logical_drives ) {
+
+            my @physical_drives;
+            my $physical_drives;
+            $physical_drives = $logical_drive->{ PHYSICAL_DRIVE }; # if ( exists( $logical_drive->{ PHYSICAL_DRIVE } ) );
+            $physical_drives = [] unless defined( $physical_drives );
+            $physical_drives = [ $physical_drives ] unless reftype( $physical_drives ) eq 'ARRAY';
+
+            foreach my $physical_drive ( @$physical_drives ) {
+
+                push( @physical_drives, {
+                    label         => $physical_drive->{ LABEL }->{ VALUE },
+                    status        => $physical_drive->{ STATUS }->{ VALUE },
+                    serial_number => $physical_drive->{ SERIAL_NUMBER }->{ VALUE },
+                    model         => $physical_drive->{ MODEL }->{ VALUE },
+                    capacity      => $physical_drive->{ CAPACITY }->{ VALUE },
+                    location      => $physical_drive->{ LOCATION }->{ VALUE },
+                    fw_version    => $physical_drive->{ FW_VERSION }->{ VALUE },
+                });
+
+            }
+
+            push( @logical_drives, {
+                label    => $logical_drive->{ LABEL }->{ VALUE },
+                status   => $logical_drive->{ STATUS }->{ VALUE },
+                capacity => $logical_drive->{ CAPACITY }->{ VALUE },
+                physical_drives => \@physical_drives,
+            });
+
+        }
+
+        push( @{$self->{controllers}}, {
+            label                   => $controller->{ LABEL }->{ VALUE },
+            status                  => $controller->{ STATUS }->{ VALUE },
+            serial_number           => $controller->{ SERIAL_NUMBER }->{ VALUE },
+            model                   => $controller->{ MODEL }->{ VALUE },
+            fw_version              => $controller->{ FW_VERSION }->{ VALUE },
+            cache_module_status     => $controller->{ CACHE_MODULE_STATUS }->{ VALUE },
+            cache_module_serial_num => $controller->{ CACHE_MODULE_SERIAL_NUM }->{ VALUE },
+            cache_module_memory     => $controller->{ CACHE_MODULE_MEMORY }->{ VALUE },
+            logical_drives => \@logical_drives,
+        });
+    }
+
     foreach my $backplane (@$backplanes) {
 
         my $firmware_version = $backplane->{FIRMWARE_VERSION}->{VALUE};
