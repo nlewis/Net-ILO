@@ -903,8 +903,9 @@ sub power_consumption {
         return unless $errmsg =~ /^Syntax error/;
     }
 
-    if ($self->{power_consumption} = $xml->{GET_POWER_READINGS}->{PRESENT_POWER_READING}->{VALUE}) {
+    if ( defined ( $xml->{GET_POWER_READINGS}->{PRESENT_POWER_READING}->{VALUE} ) ) {
 
+        $self->{power_consumption} = $xml->{GET_POWER_READINGS}->{PRESENT_POWER_READING}->{VALUE};
         return $self->{power_consumption};
 
     }
