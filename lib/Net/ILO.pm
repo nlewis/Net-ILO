@@ -1579,6 +1579,7 @@ sub _populate_embedded_health {
     $power_supplies     = [ $power_supplies ] unless reftype( $power_supplies ) eq 'ARRAY';
     $temperatures       = [ $temperatures   ] unless reftype( $temperatures )   eq 'ARRAY';
     
+    $self->{controllers}  = [] unless ( exists( $self->{controllers} ) );
     foreach my $controller (@$controllers) {
 
         my @logical_drives;
@@ -1631,6 +1632,7 @@ sub _populate_embedded_health {
         });
     }
 
+    $self->{backplanes} = [] unless ( exists( $self->{backplanes} ) );
     foreach my $backplane (@$backplanes) {
 
         my $firmware_version = $backplane->{FIRMWARE_VERSION}->{VALUE};
