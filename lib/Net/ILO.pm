@@ -2048,6 +2048,11 @@ sub _serialize {
         return;
     }
 
+    # Since iLO might sometimes return this <INFORM> section, it can make that
+    # response the largest. As a result, the longest compare below might pick
+    # the wrong XML block. Therefore, we strip the <INFORM> section.
+    $data =~ s/<INFORM>Scripting utility should be updated to the latest version\.<\/INFORM>//g;
+
     # iLO returns multiple XML stanzas, all starting with a standard header.
     # We first need to break this glob of data into individual XML components,
     # while ignoring the HTTP header returned by iLO 3.
