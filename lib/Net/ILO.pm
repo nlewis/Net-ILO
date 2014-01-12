@@ -9,7 +9,7 @@ use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
 
-our $VERSION = '0.54_003';
+our $VERSION = '0.54_004';
 
 
 my $METHOD_UNSUPPORTED = 'Method not supported by this iLO version';
@@ -680,6 +680,7 @@ sub network {
         my @known_params = qw<
             dhcp_gateway     dhcp_dns_server
             prim_dns_server  sec_dns_server   ter_dns_server
+            reg_ddns_server
         >;
         my @ilo3_params = qw<
             dhcp_sntp_settings  sntp_server1  sntp_server2  timezone
@@ -922,6 +923,19 @@ sub prim_dns_server {
     }
 
     return $self->{prim_dns_server}
+}
+
+#
+# reg_ddns_server()
+# ---------------
+sub reg_ddns_server {
+    my $self = shift;
+
+    if (not defined $self->{reg_ddns_server}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{reg_ddns_server}
 }
 
 
@@ -1318,7 +1332,8 @@ sub _connect {
     my $port    = $self->port    or croak "Can't connect: port not set";
 
     $self->{_client} = IO::Socket::SSL->new(
-        PeerAddr => "$address:$port",
+        PeerAddr        => "$address:$port",
+        SSL_verify_mode => SSL_VERIFY_NONE
     );
 
     if (!$self->{_client}) {
@@ -1886,7 +1901,7 @@ sub _populate_network_settings {
                      dhcp_gateway        dhcp_dns_server
                      prim_dns_server     sec_dns_server  ter_dns_server
                      dhcp_sntp_settings  sntp_server1    sntp_server2
-                     timezone );
+                     timezone            reg_ddns_server);
 
     foreach my $field (@fields) {
         my $xml_field = uc $field;
