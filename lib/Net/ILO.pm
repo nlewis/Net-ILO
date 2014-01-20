@@ -680,7 +680,8 @@ sub network {
         my @known_params = qw<
             dhcp_gateway     dhcp_dns_server
             prim_dns_server  sec_dns_server   ter_dns_server
-            reg_ddns_server
+            reg_ddns_server  reg_wins_server  gratuitous_arp
+            speed_autoselect ping_gateway
         >;
         my @ilo3_params = qw<
             dhcp_sntp_settings  sntp_server1  sntp_server2  timezone
@@ -936,6 +937,58 @@ sub reg_ddns_server {
     }
 
     return $self->{reg_ddns_server}
+}
+
+#
+# reg_wins_server()
+# ---------------
+sub reg_wins_server {
+    my $self = shift;
+
+    if (not defined $self->{reg_wins_server}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{reg_wins_server}
+}
+
+#
+# gratuitous_arp()
+# ---------------
+sub gratuitous_arp {
+    my $self = shift;
+
+    if (not defined $self->{gratuitous_arp}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{gratuitous_arp}
+}
+
+#
+# speed_autoselect()
+# ---------------
+sub speed_autoselect {
+    my $self = shift;
+
+    if (not defined $self->{speed_autoselect}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{speed_autoselect}
+}
+
+#
+# ping_gateway()
+# ---------------
+sub ping_gateway {
+    my $self = shift;
+
+    if (not defined $self->{ping_gateway}) {
+        $self->_populate_network_settings or return
+    }
+
+    return $self->{ping_gateway}
 }
 
 
@@ -1901,7 +1954,9 @@ sub _populate_network_settings {
                      dhcp_gateway        dhcp_dns_server
                      prim_dns_server     sec_dns_server  ter_dns_server
                      dhcp_sntp_settings  sntp_server1    sntp_server2
-                     timezone            reg_ddns_server);
+                     timezone            reg_ddns_server reg_wins_server
+                     gratuitous_arp      ping_gateway
+    );
 
     foreach my $field (@fields) {
         my $xml_field = uc $field;
