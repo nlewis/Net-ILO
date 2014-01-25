@@ -9,12 +9,14 @@ use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
 
-our $VERSION = '0.54_004';
+our $VERSION = '0.54_005';
 
 
 my $METHOD_UNSUPPORTED = 'Method not supported by this iLO version';
 
 
+# {{{ address
+#
 sub address {
 
     my $self = shift;
@@ -25,9 +27,10 @@ sub address {
 
     return $self->{address};
 
-}
+} # }}}
 
-
+# {{{ add_user
+#
 sub add_user {
 
     my $self = shift;
@@ -82,9 +85,10 @@ sub add_user {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ biosdate
+#
 sub biosdate {
 
     my $self = shift;
@@ -95,9 +99,10 @@ sub biosdate {
 
     return $self->{biosdate};
 
-}
+} # }}}
 
-
+# {{{ cpus
+#
 sub cpus {
 
     my $self = shift;
@@ -108,9 +113,10 @@ sub cpus {
 
     return $self->{cpus};
 
-}
+} # }}}
 
-
+# {{{ del_user
+#
 sub del_user {
 
     my $self = shift;
@@ -143,9 +149,10 @@ sub del_user {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ dhcp_enabled
+#
 sub dhcp_enabled {
 
     my $self = shift;
@@ -156,12 +163,10 @@ sub dhcp_enabled {
 
     return $self->{dhcp_enable};
 
-}
+} # }}}
 
-
+# {{{ dhcp_dns_server
 #
-# dhcp_dns_server()
-# ---------------
 sub dhcp_dns_server {
     my $self = shift;
 
@@ -170,12 +175,11 @@ sub dhcp_dns_server {
     }
 
     return $self->{dhcp_dns_server}
-}
 
+} # }}}
 
+# {{{ dhcp_gateway
 #
-# dhcp_gateway()
-# ------------
 sub dhcp_gateway {
     my $self = shift;
 
@@ -184,12 +188,11 @@ sub dhcp_gateway {
     }
 
     return $self->{dhcp_gateway}
-}
 
+} # }}}
 
+# {{{ dhcp_sntp_settings
 #
-# dhcp_sntp_settings()
-# ------------------
 sub dhcp_sntp_settings {
     my $self = shift;
 
@@ -198,9 +201,11 @@ sub dhcp_sntp_settings {
     }
 
     return $self->{dhcp_sntp_settings}
-}
 
+} # }}}
 
+# {{{ domain_name
+#
 sub domain_name {
 
     my $self = shift;
@@ -211,9 +216,10 @@ sub domain_name {
 
     return $self->{domain_name};
 
-}
+} # }}}
 
-
+# {{{ error
+#
 sub error {
 
     my $self = shift;
@@ -224,9 +230,10 @@ sub error {
 
     return $self->{error};
 
-}
+} # }}}
 
-
+# {{{ fans
+#
 sub fans {
 
     my $self = shift;
@@ -237,9 +244,10 @@ sub fans {
 
     return $self->{fans};
 
-}
+} # }}}
 
-
+# {{{ backplanes 
+#
 sub backplanes {
 
    my $self = shift;
@@ -256,9 +264,10 @@ sub backplanes {
        return;
    }
 
-}
+} # }}}
 
-
+# {{{ fw_date
+#
 sub fw_date {
 
     my $self = shift;
@@ -269,9 +278,10 @@ sub fw_date {
 
     return $self->{fw_date};
 
-}
+} # }}}
 
-
+# {{{ fw_type
+#
 sub fw_type {
 
     my $self = shift;
@@ -282,9 +292,10 @@ sub fw_type {
 
     return $self->{fw_type};
 
-}
+} # }}}
 
-
+# {{{ fw_version
+#
 sub fw_version {
 
     my $self = shift;
@@ -295,9 +306,10 @@ sub fw_version {
 
     return $self->{fw_version};
 
-}
+} # }}}
 
-
+# {{{ gateway 
+#
 sub gateway {
 
     my $self = shift;
@@ -308,13 +320,12 @@ sub gateway {
 
     return $self->{gateway_ip_address};
 
-}
+} # }}}
 
-
+# {{{ get_user
 #
-# get_user()
-# --------
 sub get_user {
+
     my $self = shift;
 
     croak 'get_user() requires the username' unless @_;
@@ -349,9 +360,67 @@ sub get_user {
     );
 
     return \%user_info
-}
 
+} # }}}
 
+# {{{ get_all_users 
+#
+sub get_all_users {
+
+    my $self = shift;
+
+    if (!$self->{all_users}) {
+        $self->_populate_all_users or return;
+    }
+
+    return wantarray ? @{$self->{all_users}} : $self->{all_users};
+
+} # }}}
+
+# {{{ get_iml_log 
+#
+sub get_iml_log {
+
+    my $self = shift;
+
+    if (!$self->{iml_log}) {
+        $self->_populate_iml_log or return;
+    }
+
+    return $self->{iml_log};
+
+} # }}}
+
+# {{{ get_ilo_log 
+#
+sub get_ilo_log {
+
+    my $self = shift;
+
+    if (!$self->{ilo_log}) {
+        $self->_populate_ilo_log or return;
+    }
+
+    return $self->{ilo_log};
+
+} # }}}
+
+# {{{ get_oa_info 
+#
+sub get_oa_info {
+
+    my $self = shift;
+
+    if (!$self->{oa_info}) {
+        $self->_populate_oa_info or return;
+    }
+
+    return $self->{oa_info};
+
+} # }}}
+
+# {{{ hostname 
+#
 sub hostname {
 
     my $self = shift;
@@ -362,9 +431,10 @@ sub hostname {
 
     return $self->{dns_name};
 
-}
+} # }}}
 
-
+# {{{ http_port
+#
 sub http_port {
 
     my $self = shift;
@@ -402,9 +472,10 @@ sub http_port {
 
     return $self->{http_port};
 
-}
+} # }}}
 
-
+# {{{ https_port 
+#
 sub https_port {
 
     my $self = shift;
@@ -442,9 +513,10 @@ sub https_port {
 
     return $self->{https_port};
 
-}
+} # }}}
 
-
+# {{{ ip_address 
+#
 sub ip_address {
 
     my $self = shift;
@@ -455,9 +527,10 @@ sub ip_address {
 
     return $self->{ip_address};
 
-}
+} # }}}
 
-
+# {{{ license 
+#
 sub license {
 
     my $self = shift;
@@ -492,9 +565,10 @@ sub license {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ mac01 
+#
 sub mac01 {
 
     my $self = shift;
@@ -511,9 +585,10 @@ sub mac01 {
         return;
     }
 
-}
+} # }}}
 
-
+# {{{ mac02 
+#
 sub mac02 {
 
     my $self = shift;
@@ -530,9 +605,10 @@ sub mac02 {
         return;
     }
 
-}
+} # }}}
 
-
+# {{{ mac03 
+#
 sub mac03 {
 
     my $self = shift;
@@ -552,9 +628,10 @@ sub mac03 {
         return;
     }
 
-}
+} # }}}
 
-
+# {{{ mac04 
+#
 sub mac04 {
 
     my $self = shift;
@@ -573,9 +650,10 @@ sub mac04 {
         return;
     }
 
-}
+} # }}}
 
-
+# {{{ macilo 
+#
 sub macilo {
 
     my $self = shift;
@@ -592,9 +670,10 @@ sub macilo {
         return;
     }
 
-}
+} # }}}
 
-
+# {{{ model 
+#
 sub model {
 
     my $self = shift;
@@ -605,9 +684,10 @@ sub model {
 
     return $self->{model};
 
-}
+} # }}}
 
-
+# {{{ mod_user 
+#
 sub mod_user {
 
     my $self = shift;
@@ -658,9 +738,10 @@ sub mod_user {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ network 
+#
 sub network {
 
     my $self = shift;
@@ -742,9 +823,10 @@ sub network {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ new 
+#
 sub new {
 
     my ($class) = shift;
@@ -773,9 +855,10 @@ sub new {
 
     return $self;
 
-}
+} # }}}
 
-
+# {{{ password 
+#
 sub password {
 
     my $self = shift;
@@ -786,9 +869,10 @@ sub password {
 
     return $self->{password};
 
-}
+} # }}}
 
-
+# {{{ port 
+#
 sub port {
 
     my $self = shift;
@@ -803,9 +887,10 @@ sub port {
 
     return $self->{port};
 
-}
+} # }}}
 
-
+# {{{ power 
+#
 sub power {
 
     my $self = shift;
@@ -868,9 +953,10 @@ sub power {
 
     return lc($state);
 
-}
+} # }}}
 
-
+# {{{ power_consumption 
+#
 sub power_consumption {
 
     my $self = shift;
@@ -897,9 +983,10 @@ sub power_consumption {
 
     }
 
-}
+} # }}}
 
-
+# {{{ power_supplies 
+#
 sub power_supplies {
 
     my $self = shift;
@@ -910,13 +997,12 @@ sub power_supplies {
 
     return $self->{power_supplies};
 
-}
+} # }}}
 
-
+# {{{ prim_dns_server
 #
-# prim_dns_server()
-# ---------------
 sub prim_dns_server {
+
     my $self = shift;
 
     if (not defined $self->{prim_dns_server}) {
@@ -924,12 +1010,13 @@ sub prim_dns_server {
     }
 
     return $self->{prim_dns_server}
-}
 
+} # }}}
+
+# {{{ reg_ddns_server
 #
-# reg_ddns_server()
-# ---------------
 sub reg_ddns_server {
+
     my $self = shift;
 
     if (not defined $self->{reg_ddns_server}) {
@@ -937,11 +1024,11 @@ sub reg_ddns_server {
     }
 
     return $self->{reg_ddns_server}
-}
 
+} # }}}
+
+# {{{ reg_wins_server
 #
-# reg_wins_server()
-# ---------------
 sub reg_wins_server {
     my $self = shift;
 
@@ -950,11 +1037,11 @@ sub reg_wins_server {
     }
 
     return $self->{reg_wins_server}
-}
 
+} # }}}
+
+# {{{ gratuitous_arp
 #
-# gratuitous_arp()
-# ---------------
 sub gratuitous_arp {
     my $self = shift;
 
@@ -963,11 +1050,11 @@ sub gratuitous_arp {
     }
 
     return $self->{gratuitous_arp}
-}
 
+} # }}}
+
+# {{{ speed_autoselect
 #
-# speed_autoselect()
-# ---------------
 sub speed_autoselect {
     my $self = shift;
 
@@ -976,11 +1063,11 @@ sub speed_autoselect {
     }
 
     return $self->{speed_autoselect}
-}
 
+} # }}}
+
+# {{{ ping_gateway
 #
-# ping_gateway()
-# ---------------
 sub ping_gateway {
     my $self = shift;
 
@@ -989,9 +1076,11 @@ sub ping_gateway {
     }
 
     return $self->{ping_gateway}
-}
 
+} # }}}
 
+# {{{ ramslots 
+#
 sub ramslots {
 
     my $self = shift;
@@ -1002,9 +1091,36 @@ sub ramslots {
 
     return $self->{ramslots};
 
-}
+} # }}}
 
+# {{{ raw_command 
+#
+sub raw_command {
 
+    my $self = shift;
+    my $cmd  = shift;
+
+    unless ( $cmd ) {
+        $self->error('No raw command specified');
+        return;
+    }
+
+    my $ilo_command = $self->_generate_raw_cmd($cmd);
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+    return $xml;
+
+} # }}}
+
+# {{{ reset 
+#
 sub reset {
 
     my $self = shift;
@@ -1021,13 +1137,12 @@ sub reset {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ sec_dns_server
 #
-# sec_dns_server()
-# --------------
 sub sec_dns_server {
+
     my $self = shift;
 
     if (not defined $self->{sec_dns_server}) {
@@ -1035,27 +1150,29 @@ sub sec_dns_server {
     }
 
     return $self->{sec_dns_server}
-}
 
+} # }}}
 
+# {{{ serial_cli_speed
 #
-# serial_cli_speed()
-# ----------------
 sub serial_cli_speed {
+
     my $self = shift;
     return $self->_get_or_mod_global_settings(serial_cli_speed => @_)
-}
 
+} # }}}
 
+# {{{ serial_cli_status
 #
-# serial_cli_status()
-# -----------------
 sub serial_cli_status {
+
     my $self = shift;
     return $self->_get_or_mod_global_settings(serial_cli_status => @_)
-}
 
+} # }}}
 
+# {{{ serialID 
+#
 sub serialID {
 
     my $self = shift;
@@ -1066,12 +1183,10 @@ sub serialID {
 
     return $self->{serialID};
 
-}
+} # }}}
 
-
+# {{{ server_name
 #
-# server_name()
-# -----------
 sub server_name {
     my $self = shift;
     my $name = shift;
@@ -1111,9 +1226,11 @@ sub server_name {
     $self->{server_name} = defined $name ? $name : $xml->{SERVER_NAME}{VALUE};
 
     return $self->{server_name}
-}
 
+} # }}}
 
+# {{{ session_timeout 
+#
 sub session_timeout {
 
     my $self = shift;
@@ -1124,12 +1241,10 @@ sub session_timeout {
 
     return $self->{session_timeout};
 
-}
+} # }}}
 
-
+# {{{ sntp_server1
 #
-# sntp_server1()
-# ------------
 sub sntp_server1 {
     my $self = shift;
 
@@ -1138,12 +1253,11 @@ sub sntp_server1 {
     }
 
     return $self->{sntp_server1}
-}
 
+} # }}}
 
+# {{{ sntp_server2
 #
-# sntp_server2()
-# ------------
 sub sntp_server2 {
     my $self = shift;
 
@@ -1152,9 +1266,11 @@ sub sntp_server2 {
     }
 
     return $self->{sntp_server2}
-}
 
+} # }}}
 
+# {{{ ssh_port 
+#
 sub ssh_port {
 
     my $self = shift;
@@ -1192,9 +1308,10 @@ sub ssh_port {
 
     return $self->{ssh_port};
 
-}
+} # }}}
 
-
+# {{{ ssh_status 
+#
 sub ssh_status {
 
     my $self = shift;
@@ -1230,9 +1347,10 @@ sub ssh_status {
 
     return $self->{ssh_status};
 
-}
+} # }}}
 
-
+# {{{ subnet_mask 
+#
 sub subnet_mask {
 
     my $self = shift;
@@ -1243,9 +1361,10 @@ sub subnet_mask {
 
     return $self->{subnet_mask};
 
-}
+} # }}}
 
-
+# {{{ temperatures 
+#
 sub temperatures {
 
     my $self = shift;
@@ -1256,12 +1375,10 @@ sub temperatures {
 
     return $self->{temperatures};
 
-}
+} # }}}
 
-
+# {{{ ter_dns_server 
 #
-# ter_dns_server()
-# --------------
 sub ter_dns_server {
     my $self = shift;
 
@@ -1270,12 +1387,11 @@ sub ter_dns_server {
     }
 
     return $self->{ter_dns_server}
-}
 
+} # }}}
 
+# {{{ timezone 
 #
-# timezone()
-# --------
 sub timezone {
     my $self = shift;
 
@@ -1284,9 +1400,11 @@ sub timezone {
     }
 
     return $self->{timezone}
-}
 
+} # }}}
 
+# {{{ uid 
+#
 sub uid {
 
     my $self = shift;
@@ -1340,9 +1458,10 @@ sub uid {
 
     return lc($uid_status);
 
-}
+} # }}}
 
-
+# {{{ username 
+#
 sub username {
 
     my $self = shift;
@@ -1353,9 +1472,10 @@ sub username {
 
     return $self->{username};
 
-}
+} # }}}
 
-
+# {{{ _check_errors 
+#
 sub _check_errors {
 
     my $xml = shift;
@@ -1370,9 +1490,10 @@ sub _check_errors {
         return;
     }
 
-}
+} # }}}
 
-
+# {{{ _connect 
+#
 sub _connect {
 
     my $self = shift;
@@ -1396,9 +1517,10 @@ sub _connect {
 
     return $self->{_client};
 
-}
+} # }}}
 
-
+# {{{ _debug 
+#
 sub _debug {
 
     my $self = shift;
@@ -1409,9 +1531,10 @@ sub _debug {
 
     return $self->{_debug};
 
-}
+} # }}}
 
-
+# {{{ _detect_version 
+#
 sub _detect_version {
 
     my $self = shift;
@@ -1437,9 +1560,10 @@ sub _detect_version {
         return 2;
     }
 
-}
+} # }}}
 
-
+# {{{ _disconnect 
+#
 sub _disconnect {
 
     my $self = shift;
@@ -1452,9 +1576,10 @@ sub _disconnect {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ _generate_cmd 
+#
 sub _generate_cmd {
 
     my ($self, $command) = @_;
@@ -1517,6 +1642,22 @@ sub _generate_cmd {
                                        <GET_UID_STATUS/>
                                        </SERVER_INFO> ),
 
+        'get_all_users'         => qq( <USER_INFO MODE="read">
+                                       <GET_ALL_USERS/>
+                                       </USER_INFO> ),
+
+        'get_iml_log'           => qq( <SERVER_INFO MODE="read">
+                                       <GET_EVENT_LOG/>
+                                       </SERVER_INFO> ),
+
+        'get_ilo_log'           => qq( <RIB_INFO MODE="read">
+                                       <GET_EVENT_LOG/>
+                                       </RIB_INFO> ),
+
+        'get_oa_info'           => qq( <BLADESYSTEM_INFO MODE="read">
+                                       <GET_OA_INFO/>
+                                       </BLADESYSTEM_INFO> ),
+
     );
 
     my $ilo_command = $commands{$command} or die "Internal error: command '$command' doesn't exist";
@@ -1525,12 +1666,396 @@ sub _generate_cmd {
 
     return $ilo_command;
 
-}
+} # }}}
 
-
+# {{{ _generate_raw_cmd 
 #
-# _get_or_mod_global_settings()
-# ---------------------------
+# Pass in a command corresponding with one of the hash keys
+# or pass in a chunk of xml.
+#
+sub _generate_raw_cmd {
+
+
+    my ($self, $command) = @_;
+
+    # The key names correspond to the filenames (currently
+    # for read commands only) from the HP linux
+    # LOsamplescripts bundle.
+    #
+
+    my %commands = (
+
+        ERS_Get_Settings => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_ERS_SETTINGS />
+                                </RIB_INFO> ],
+
+        Get_2Factor => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_TWOFACTOR_SETTINGS/>
+                                </RIB_INFO> ],
+
+        Get_All_Languages => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_ALL_LANGUAGES/>
+                                </RIB_INFO> ],
+
+        Get_All_Licenses => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_ALL_LICENSES/>
+                                </RIB_INFO> ],
+
+        Get_All_User_Info => 
+
+                            qq[ <USER_INFO MODE="read">
+                                <GET_ALL_USER_INFO/>
+                                </USER_INFO> ],
+
+        Get_All_Users => 
+
+                            qq[ <USER_INFO MODE="read">
+                                <GET_ALL_USERS/>
+                                </USER_INFO> ],
+
+        Get_Asset_Tag => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_ASSET_TAG />
+                                </SERVER_INFO> ],
+
+        Get_Boot_Mode => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_PENDING_BOOT_MODE/>
+                                </SERVER_INFO> ],
+
+        Get_Cert_Subject_Info => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_CERT_SUBJECT_INFO/>
+                                </RIB_INFO> ],
+
+        Get_Current_Boot_Mode => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_CURRENT_BOOT_MODE/>
+                                </SERVER_INFO> ],
+
+        Get_Diagport => 
+
+                            qq[ <RACK_INFO MODE="read">
+                                <GET_DIAGPORT_SETTINGS/>
+                                </RACK_INFO> ],
+
+        Get_Directory => 
+
+                            qq[ <DIR_INFO MODE="read">
+                                <GET_DIR_CONFIG/>
+                                </DIR_INFO> ],
+
+        Get_EmHealth => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_EMBEDDED_HEALTH />
+                                </SERVER_INFO> ],
+
+        Get_Embedded_Health => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                GET_EMBEDDED_HEALTH>
+                                <GET_ALL_FANS/>
+                                <GET_ALL_TEMPERATURES/>
+                                <GET_ALL_POWER_SUPPLIES/>
+                                <GET_ALL_VRM/>
+                                <GET_ALL_PROCESSORS/>
+                                <GET_ALL_MEMORY/>
+                                <GET_ALL_NICS/>
+                                <GET_ALL_STORAGE/>
+                                <GET_ALL_HEALTH_STATUS/>
+                                <GET_ALL_FIRMWARE_VERSIONS/>
+                                </GET_EMBEDDED_HEALTH> ],
+
+        Get_Enc_Bay_IP_Settings => 
+
+                            qq[ <RACK_INFO MODE="read">
+                                <GET_ENCLOSURE_IP_SETTINGS/>
+                                </RACK_INFO> ],
+
+        Get_Encrypt => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_ENCRYPT_SETTINGS/>
+                                </RIB_INFO> ],
+
+        Get_FIPS_Status => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_FIPS_STATUS/>
+                                </RIB_INFO> ],
+
+        Get_FW_Version => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_FW_VERSION/>
+                                </RIB_INFO> ],
+
+        Get_Federation_All_Groups => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_FEDERATION_ALL_GROUPS/>
+                                </RIB_INFO> ],
+
+        Get_Federation_All_Groups_Info => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_FEDERATION_ALL_GROUPS_INFO/>
+                                </RIB_INFO> ],
+
+        Get_Federation_Group => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_FEDERATION_GROUP GROUP_NAME="groupname"/>
+                                </RIB_INFO> ],
+
+        Get_Federation_Multicast_Options => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_FEDERATION_MULTICAST/>
+                                </RIB_INFO> ],
+
+        Get_Global => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_GLOBAL_SETTINGS/>
+                                </RIB_INFO> ],
+
+        Get_Host_APO => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_SERVER_AUTO_PWR />
+                                </SERVER_INFO> ],
+
+        Get_Host_Data => 
+
+                            qq[ <SERVER_INFO MODE="READ" >
+                                <GET_HOST_DATA />
+                                </SERVER_INFO> ],
+
+        Get_Host_Power => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_HOST_POWER_STATUS/>
+                                </SERVER_INFO> ],
+
+        Get_Host_Power_Reg_Info => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_HOST_POWER_REG_INFO/>
+                                </SERVER_INFO> ],
+
+        Get_Host_Power_Saver => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_HOST_POWER_SAVER_STATUS/>
+                                </SERVER_INFO> ],
+
+        Get_Host_Pwr_Micro_Ver => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_HOST_PWR_MICRO_VER/>
+                                </SERVER_INFO> ],
+
+        Get_Hotkey_Config => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_HOTKEY_CONFIG/>
+                                </RIB_INFO> ],
+
+        Get_IML => 
+
+                            qq[ <SERVER_INFO MODE="READ" >
+                                <GET_EVENT_LOG />
+                                </SERVER_INFO> ],
+
+        Get_Network => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_NETWORK_SETTINGS/>
+                                </RIB_INFO> ],
+
+        Get_OA_Info => 
+
+                            qq[ <BLADESYSTEM_INFO MODE="read">
+                                <GET_OA_INFO/>
+                                </BLADESYSTEM_INFO> ],
+
+        Get_One_Time_Boot_Order => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_ONE_TIME_BOOT/>
+                                </SERVER_INFO> ],
+
+        Get_Persistent_Boot_Order => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_PERSISTENT_BOOT/>
+                                </SERVER_INFO> ],
+
+        Get_Persmouse_Status => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_PERS_MOUSE_KEYBOARD_ENABLED/>
+                                </SERVER_INFO> ],
+
+        Get_PowerCap => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_POWER_CAP/>
+                                </SERVER_INFO> ],
+
+        Get_Power_On_Time => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_SERVER_POWER_ON_TIME />
+                                </SERVER_INFO> ],
+
+        Get_Power_Readings => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_POWER_READINGS/>
+                                </SERVER_INFO> ],
+
+        Get_Product_Name => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_PRODUCT_NAME/>
+                                </SERVER_INFO> ],
+
+        Get_Pwreg_Alert_Threshold => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_PWREG/>
+                                </SERVER_INFO> ],
+
+        Get_Rack_Settings => 
+
+                            qq[ <RACK_INFO MODE="read">
+                                <GET_RACK_SETTINGS/>
+                                </RACK_INFO> ],
+
+        Get_SNMP_IM => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_SNMP_IM_SETTINGS/>
+                                </RIB_INFO> ],
+
+        Get_SSO_Settings => 
+
+                            qq[ <SSO_INFO MODE="read">
+                                <GET_SSO_SETTINGS/>
+                                </SSO_INFO> ],
+
+        Get_Security_Msg => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_SECURITY_MSG/>
+                                </RIB_INFO> ],
+
+        Get_Server_FQDN => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_SERVER_FQDN />
+                                <GET_SMH_FQDN />
+                                </SERVER_INFO> ],
+
+        Get_Server_Name => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_SERVER_NAME/>
+                                </SERVER_INFO> ],
+
+        Get_Supported_Boot_Mode => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_SUPPORTED_BOOT_MODE/>
+                                </SERVER_INFO> ],
+
+        Get_TPM_Status => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_TPM_STATUS/>
+                                </SERVER_INFO> ],
+
+        Get_UID_Status => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_UID_STATUS />
+                                </SERVER_INFO> ],
+
+        Get_User => 
+
+                            qq[ <USER_INFO MODE="read">
+                                <GET_USER USER_LOGIN="username"/>
+                                </USER_INFO> ],
+
+        Get_VM_Status => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_VM_STATUS DEVICE="FLOPPY"/>
+                                </RIB_INFO> ],
+
+        Get_iLO_Log => 
+
+                            qq[ <RIB_INFO MODE="READ" >
+                                <GET_EVENT_LOG />
+                                </RIB_INFO> ],
+
+        Get_language => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <GET_LANGUAGE/>
+                                </RIB_INFO> ],
+
+        Profile_Apply_Get_Results => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <PROFILE_APPLY_GET_RESULTS/>
+                                </RIB_INFO> ],
+
+        Profile_Desc_List => 
+
+                            qq[ <RIB_INFO MODE="read">
+                                <PROFILE_LIST/>
+                                </RIB_INFO> ],
+
+        get_discovery_services => 
+
+                            qq[ <SERVER_INFO MODE="read">
+                                <GET_SPATIAL/>
+                                </SERVER_INFO> ],
+
+
+    );
+
+    my $ilo_command = 
+        defined $commands{$command}
+        &&      $commands{$command}
+              ? $commands{$command}
+              : $command
+              ;
+            
+    $ilo_command = $self->_wrap($ilo_command);
+
+    return $ilo_command;
+
+} # }}}
+
+# {{{ _get_or_mod_global_settings 
+#
 sub _get_or_mod_global_settings {
     my $self = shift;
     my $param = shift;
@@ -1563,9 +2088,10 @@ sub _get_or_mod_global_settings {
     }
 
     return $self->{$param}
-}
+} # }}}
 
-
+# {{{ _length 
+#
 sub _length {
 
     # for iLO 3 we need to know the length of the XML for the
@@ -1587,9 +2113,10 @@ sub _length {
 
     return $length;
 
-}
+} # }}}
 
-
+# {{{ _populate_embedded_health 
+#
 sub _populate_embedded_health {
 
     my $self = shift;
@@ -1696,9 +2223,10 @@ sub _populate_embedded_health {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ _populate_fw_version 
+#
 sub _populate_fw_version {
 
     my $self = shift;
@@ -1719,9 +2247,10 @@ sub _populate_fw_version {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ _populate_global_settings 
+#
 sub _populate_global_settings {
 
     my $self = shift;
@@ -1752,9 +2281,10 @@ sub _populate_global_settings {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ _populate_host_data 
+#
 sub _populate_host_data {
 
     my $self = shift;
@@ -1931,9 +2461,10 @@ sub _populate_host_data {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ _populate_network_settings 
+#
 sub _populate_network_settings {
 
     my $self = shift;
@@ -1966,19 +2497,184 @@ sub _populate_network_settings {
 
     return 1;
 
-}
+} # }}}
+
+# {{{ _populate_oa_info 
+#
+sub _populate_oa_info {
+
+    my $self = shift;
+
+    my $ilo_command = $self->_generate_cmd('get_oa_info');
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+    return unless defined $xml->{GET_OA_INFO}
+               && defined $xml->{GET_OA_INFO}->{ENCL}
+               && defined $xml->{GET_OA_INFO}->{ipAddress};
+
+    my $ENCL      = $xml->{GET_OA_INFO}->{ENCL};
+    my $ipAddress = $xml->{GET_OA_INFO}->{ipAddress};
+
+    my $RACK = 
+        defined $xml->{GET_OA_INFO}->{RACK}
+        &&      $xml->{GET_OA_INFO}->{RACK}
+              ? $xml->{GET_OA_INFO}->{RACK}
+              : undef;
+
+    my $ST = 
+        defined $xml->{GET_OA_INFO}->{ST}
+        &&      $xml->{GET_OA_INFO}->{ST}
+              ? $xml->{GET_OA_INFO}->{ST}
+              : undef;
+
+    my $Location = 
+        defined $xml->{GET_OA_INFO}->{Location}
+        &&      $xml->{GET_OA_INFO}->{Location}
+              ? $xml->{GET_OA_INFO}->{Location}
+              : undef;
+
+    my $macAddress = 
+        defined $xml->{GET_OA_INFO}->{macAddress}
+        &&      $xml->{GET_OA_INFO}->{macAddress}
+              ? $xml->{GET_OA_INFO}->{macAddress}
+              : undef;
+
+    my $uidStatus = 
+        defined $xml->{GET_OA_INFO}->{uidStatus}
+        &&      $xml->{GET_OA_INFO}->{uidStatus}
+              ? $xml->{GET_OA_INFO}->{uidStatus}
+              : undef;
+
+    my $oa_info = "${ENCL} (${ipAddress}";
+    $oa_info .= " - ${macAddress}"       if $macAddress;
+    $oa_info .= ")";
+    $oa_info .= " Rack: ${RACK}"         if $RACK;
+    $oa_info .= " Location: ${Location}" if $Location;
+    $oa_info .= " ST: ${ST}"             if $ST;
+    $oa_info .= " UID: ${uidStatus}"     if $uidStatus;
+
+    
+    $self->{oa_info} = $oa_info;
+
+    return 1;
+
+} # }}}
+
+# {{{ _populate_all_users 
+#
+sub _populate_all_users {
+
+    my $self = shift;
+
+    my $ilo_command = $self->_generate_cmd('get_all_users');
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+   #$self->{all_users} = $xml;
+
+    return unless 
+           defined $xml
+        && defined $xml->{GET_ALL_USERS}
+        && defined $xml->{GET_ALL_USERS}->{USER_LOGIN}
+        &&     ref $xml->{GET_ALL_USERS}->{USER_LOGIN} eq 'ARRAY';
+
+    for my $cur ( @{$xml->{GET_ALL_USERS}->{USER_LOGIN}} ) {
+
+        my $user =
+            defined $cur->{VALUE}
+            &&      $cur->{VALUE}
+                  ? $cur->{VALUE}
+                  : next
+                  ;
+
+        push @{$self->{all_users}}, $user;
+
+    }
+
+    return 1;
+
+} # }}}
+
+# {{{ _populate_iml_log 
+#
+sub _populate_iml_log {
+
+    my $self = shift;
+
+    my $ilo_command = $self->_generate_cmd('get_iml_log');
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+    if ( my $log = $self->_parse_log($xml) ) {
+        $self->{iml_log} = $log;
+        return 1;
+    } else {
+        return;
+    }
+
+} # }}}
+
+# {{{ _populate_ilo_log 
+#
+sub _populate_ilo_log {
+
+    my $self = shift;
+
+    my $ilo_command = $self->_generate_cmd('get_ilo_log');
+
+    my $response    = $self->_send($ilo_command)    or return;
+    my $xml         = $self->_serialize($response)  or return;
+
+    if ( my $errmsg = _check_errors($xml) ) {
+        $self->error($errmsg);
+        return;
+    }
+
+    if ( my $log = $self->_parse_log($xml) ) {
+        $self->{ilo_log} = $log;
+        return 1;
+    } else {
+        return;
+    }
 
 
+} # }}}
+
+# {{{ _send 
+#
 sub _send {
 
     my ($self, $ilo_command) = @_;
 
     my $client = $self->_connect or return;
 
+    my @sent_lines;
+
     foreach my $line ( split(/\n/, $ilo_command) ) {
 
         $line =~ s/^\s+//;
         $line =~ s/\s+$//;
+
+        push @sent_lines, $line if $line;
 
         if ($self->_debug > 0) {
             print "'$line'\n";
@@ -2008,15 +2704,48 @@ sub _send {
         return;
     }
 
+
     if ($self->_debug > 0) {
+
         print Dumper $response;
+
+        my @recv_lines;
+
+        # Break the response up into stanzas a bit like the
+        # _serialize() function.
+        #
+        for my $cur ( grep { !/HTTP\/1.1/ } split(/<\?xml.*?\?>/, $response) ) {
+            $cur =~ s/\R//g;
+            $cur =~ s/\s\s+/ /g;
+            push @recv_lines, $cur if $cur;
+        }
+
+        # Now iterate the indexes of sent_lines and display
+        # the corresponding sent and receive messages.
+        #
+        for ( 0..$#sent_lines ) {
+
+            print 'Sent: ' . $sent_lines[$_] . "\n";
+
+            my $recd =
+                defined $recv_lines[$_]
+                &&      $recv_lines[$_]
+                      ? $recv_lines[$_]
+                      : 'N/A'
+                      ;
+
+            print "Recd: ${recd}\n\n";
+
+        }
+
     }
 
     return $response;
 
-}
+} # }}}
 
-
+# {{{ _serialize 
+#
 sub _serialize {
 
     my ($self, $data) = @_;
@@ -2062,9 +2791,53 @@ sub _serialize {
 
     return $xml;
 
-}
+} # }}}
+
+# {{{ _parse_log 
+#
+# Turn the logs from the parsed xml into a more syslog-like output. 
+#
+# Expects to receive the xml as an argument.
+#
+# Returns a scalar ref of the log lines ready for printing.
+#
+sub _parse_log {
+
+    my ($self, $xml) = @_;
+
+    return unless 
+               defined $xml->{EVENT_LOG}
+            && defined $xml->{EVENT_LOG}->{EVENT}
+            &&     ref $xml->{EVENT_LOG}->{EVENT} eq 'ARRAY';
 
 
+    my $parsed = '';
+
+    my $addr = $self->address;
+
+    for my $event ( @{$xml->{EVENT_LOG}->{EVENT}} ) {
+
+        my $SEVERITY       = $event->{SEVERITY} . ' -';
+        my $CLASS          = '[' . $event->{CLASS} . ']';
+        my $INITIAL_UPDATE = $event->{INITIAL_UPDATE};
+        my $LAST_UPDATE    = $event->{LAST_UPDATE};
+        my $DESCRIPTION    = $event->{DESCRIPTION};
+        my $COUNT          = $event->{COUNT};
+
+        $parsed .= join(' ', $LAST_UPDATE, $addr, $CLASS, $SEVERITY, $DESCRIPTION, "\n" );
+
+        if ( $COUNT > 1 ) {
+            $parsed .= join(' ', $LAST_UPDATE, $addr, $CLASS, $SEVERITY, "Last message repeated ${COUNT} times.\n" );
+        }
+
+    }
+
+    return \$parsed;
+
+} # }}}
+
+# {{{ _port_is_valid 
+#
 sub _port_is_valid {
 
     my $port = shift;
@@ -2073,9 +2846,10 @@ sub _port_is_valid {
 
     return 1;
 
-}
+} # }}}
 
-
+# {{{ _version 
+#
 sub _version {
 
     my $self = shift;
@@ -2086,9 +2860,10 @@ sub _version {
 
     return $self->{_version};
 
-}
+} # }}}
 
-
+# {{{ _wrap 
+#
 sub _wrap {
 
     my $self = shift;
@@ -2140,9 +2915,10 @@ sub _wrap {
 
     return $ilo_command;
 
-}
+} # }}}
 
-
+# {{{ DESTROY 
+#
 sub DESTROY {
 
     my $self = shift;
@@ -2151,9 +2927,10 @@ sub DESTROY {
     $client->close;
 
     return;
-}
+} # }}}
 
 1;
+
 __END__
 
 =head1 NAME
@@ -2435,6 +3212,27 @@ Returns the subnet mask of the iLO processor.
 
 Returns the default gateway in use for the iLO networking.
 
+=item speed_autoselect()
+
+    # either 'Y' or 'N'
+    print $ilo->speed_autoselect;
+
+'Y' if iLO will autonegotiate port speed.
+
+=item ping_gateway()
+
+    # either 'Y' or 'N'
+    print $ilo->ping_gateway;
+
+"Y" if iLO is to ping the gateway address on boot.
+
+=item gratuitous_arp()
+
+    # either 'Y' or 'N'
+    print $ilo->gratuitous_arp;
+
+"Y" if iLO is to perform a gratuitous arp on boot.
+
 =item dhcp_gateway()
 
     # either 'Y' or 'N'
@@ -2458,6 +3256,20 @@ Returns "Y" if iLO is to get the DNS servers from the DHCP server,
 
 Return the IP address of the primary, secondary or tertiary DNS server,
 respectively.
+
+=item reg_ddns_server()
+
+    # either 'Y' or 'N'
+    print $ilo->reg_ddns_server;
+
+"Y" if iLO will attempt to register with the dns server.
+
+=item reg_wins_server()
+
+    # either 'Y' or 'N'
+    print $ilo->reg_wins_server;
+
+"Y" if iLO will attempt to register with the wins server.
 
 =item dhcp_sntp_settings()
 
@@ -2506,6 +3318,8 @@ following parameters are allowed, see individual methods above for more detail:
     prim_dns_server
     sec_dns_server
     ter_dns_server
+    reg_ddns_server
+    reg_wins_server
     dhcp_sntp_settings
     sntp_server1
     sntp_server2
