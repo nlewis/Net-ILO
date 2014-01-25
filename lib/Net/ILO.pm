@@ -8,6 +8,7 @@ use Data::Dumper;
 use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
+use Scalar::Util qw( reftype );
 
 our $VERSION = '0.54_005';
 
@@ -265,6 +266,25 @@ sub backplanes {
    }
 
 } # }}}
+
+sub controllers {
+
+   my $self = shift;
+
+   if (!$self->{controllers}) {
+       $self->_populate_embedded_health or return;
+   }
+
+   if ($self->{controllers}) {
+       return $self->{controllers};
+   }
+   else {
+       $self->error($METHOD_UNSUPPORTED);
+       return;
+   }
+
+}
+
 
 # {{{ fw_date
 #
@@ -971,8 +991,9 @@ sub power_consumption {
         return unless $errmsg =~ /^Syntax error/;
     }
 
-    if ($self->{power_consumption} = $xml->{GET_POWER_READINGS}->{PRESENT_POWER_READING}->{VALUE}) {
+    if ( defined ( $xml->{GET_POWER_READINGS}->{PRESENT_POWER_READING}->{VALUE} ) ) {
 
+        $self->{power_consumption} = $xml->{GET_POWER_READINGS}->{PRESENT_POWER_READING}->{VALUE};
         return $self->{power_consumption};
 
     }
@@ -2131,11 +2152,82 @@ sub _populate_embedded_health {
         return;
     }
 
+    my $backplanes;
+    my $controllers;
     my $fans            = $xml->{GET_EMBEDDED_HEALTH_DATA}->{FANS}->{FAN};
-    my $backplanes      = $xml->{GET_EMBEDDED_HEALTH_DATA}->{DRIVES}->{BACKPLANE};
     my $power_supplies  = $xml->{GET_EMBEDDED_HEALTH_DATA}->{POWER_SUPPLIES}->{SUPPLY};
     my $temperatures    = $xml->{GET_EMBEDDED_HEALTH_DATA}->{TEMPERATURE}->{TEMP};
 
+    $backplanes         = $xml->{GET_EMBEDDED_HEALTH_DATA}->{DRIVES}->{BACKPLANE} if ( exists($xml->{GET_EMBEDDED_HEALTH_DATA}->{DRIVES}));
+    $controllers        = $xml->{GET_EMBEDDED_HEALTH_DATA}->{STORAGE}->{CONTROLLER} if ( exists($xml->{GET_EMBEDDED_HEALTH_DATA}->{STORAGE}) );
+
+    $fans               = [] unless defined( $fans );
+    $backplanes         = [] unless defined( $backplanes );
+    $controllers        = [] unless defined( $controllers );
+    $power_supplies     = [] unless defined( $power_supplies );
+    $temperatures       = [] unless defined( $temperatures );
+    
+    # XML::Simple makes wrong guesses if e.g. only one FAN is present...
+    $fans               = [ $fans           ] unless reftype( $fans )           eq 'ARRAY';
+    $backplanes         = [ $backplanes     ] unless reftype( $backplanes )     eq 'ARRAY';
+    $controllers        = [ $controllers    ] unless reftype( $controllers )    eq 'ARRAY';
+    $power_supplies     = [ $power_supplies ] unless reftype( $power_supplies ) eq 'ARRAY';
+    $temperatures       = [ $temperatures   ] unless reftype( $temperatures )   eq 'ARRAY';
+    
+    $self->{controllers}  = [] unless ( exists( $self->{controllers} ) );
+    foreach my $controller (@$controllers) {
+
+        my @logical_drives;
+        my $logical_drives;
+        $logical_drives = $controller->{ LOGICAL_DRIVE } if ( exists( $controller->{ LOGICAL_DRIVE } ) );
+        $logical_drives = [] unless defined( $logical_drives );
+        $logical_drives = [ $logical_drives ] unless reftype( $logical_drives ) eq 'ARRAY';
+
+        foreach my $logical_drive ( @$logical_drives ) {
+
+            my @physical_drives;
+            my $physical_drives;
+            $physical_drives = $logical_drive->{ PHYSICAL_DRIVE }; # if ( exists( $logical_drive->{ PHYSICAL_DRIVE } ) );
+            $physical_drives = [] unless defined( $physical_drives );
+            $physical_drives = [ $physical_drives ] unless reftype( $physical_drives ) eq 'ARRAY';
+
+            foreach my $physical_drive ( @$physical_drives ) {
+
+                push( @physical_drives, {
+                    label         => $physical_drive->{ LABEL }->{ VALUE },
+                    status        => $physical_drive->{ STATUS }->{ VALUE },
+                    serial_number => $physical_drive->{ SERIAL_NUMBER }->{ VALUE },
+                    model         => $physical_drive->{ MODEL }->{ VALUE },
+                    capacity      => $physical_drive->{ CAPACITY }->{ VALUE },
+                    location      => $physical_drive->{ LOCATION }->{ VALUE },
+                    fw_version    => $physical_drive->{ FW_VERSION }->{ VALUE },
+                });
+
+            }
+
+            push( @logical_drives, {
+                label    => $logical_drive->{ LABEL }->{ VALUE },
+                status   => $logical_drive->{ STATUS }->{ VALUE },
+                capacity => $logical_drive->{ CAPACITY }->{ VALUE },
+                physical_drives => \@physical_drives,
+            });
+
+        }
+
+        push( @{$self->{controllers}}, {
+            label                   => $controller->{ LABEL }->{ VALUE },
+            status                  => $controller->{ STATUS }->{ VALUE },
+            serial_number           => $controller->{ SERIAL_NUMBER }->{ VALUE },
+            model                   => $controller->{ MODEL }->{ VALUE },
+            fw_version              => $controller->{ FW_VERSION }->{ VALUE },
+            cache_module_status     => $controller->{ CACHE_MODULE_STATUS }->{ VALUE },
+            cache_module_serial_num => $controller->{ CACHE_MODULE_SERIAL_NUM }->{ VALUE },
+            cache_module_memory     => $controller->{ CACHE_MODULE_MEMORY }->{ VALUE },
+            logical_drives => \@logical_drives,
+        });
+    }
+
+    $self->{backplanes} = [] unless ( exists( $self->{backplanes} ) );
     foreach my $backplane (@$backplanes) {
 
         my $firmware_version = $backplane->{FIRMWARE_VERSION}->{VALUE};
@@ -2754,6 +2846,11 @@ sub _serialize {
         $self->error('Error parsing response: no data received');
         return;
     }
+
+    # Since iLO might sometimes return this <INFORM> section, it can make that
+    # response the largest. As a result, the longest compare below might pick
+    # the wrong XML block. Therefore, we strip the <INFORM> section.
+    $data =~ s/<INFORM>Scripting utility should be updated to the latest version\.<\/INFORM>//g;
 
     # iLO returns multiple XML stanzas, all starting with a standard header.
     # We first need to break this glob of data into individual XML components,
