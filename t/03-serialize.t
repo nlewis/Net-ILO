@@ -88,4 +88,4 @@ ok( $parsed_good->{GET_GLOBAL_SETTINGS}->{TEST_ITEM}->{VALUE} == 30, 'XML parsed
 ok( !$parsed_bad,                                                    'Bad XML sent to parser returns false' );
 ok( !$parsed_empty,                                                  'Null data sent to parser returns false' );
 ok( $error_empty eq 'Error parsing response: no data received',      'Error message set for null data');
-ok( $parsed_success_with_inform->{INFORM},                           'When all messages are successful, the longest message is returned'); 
+ok( !$parsed_success_with_inform->{INFORM},                          'When all messages are successful, the longest message is returned'); 
