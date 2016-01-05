@@ -8,6 +8,7 @@ use Data::Dumper;
 use English qw(-no_match_vars);
 use IO::Socket::SSL;
 use XML::Simple;
+use Scalar::Util qw( reftype );
 
 our $VERSION = '0.54_003';
 
@@ -1541,6 +1542,12 @@ sub _populate_embedded_health {
     my $power_supplies  = $xml->{GET_EMBEDDED_HEALTH_DATA}->{POWER_SUPPLIES}->{SUPPLY};
     my $temperatures    = $xml->{GET_EMBEDDED_HEALTH_DATA}->{TEMPERATURE}->{TEMP};
 
+    # XML::Simple makes wrong guesses if e.g. only one FAN is present...
+    $fans               = [ $fans           ] unless reftype( $fans )           eq 'ARRAY';
+    $backplanes         = [ $backplanes     ] unless reftype( $backplanes )     eq 'ARRAY';
+    $power_supplies     = [ $power_supplies ] unless reftype( $power_supplies ) eq 'ARRAY';
+    $temperatures       = [ $temperatures   ] unless reftype( $temperatures )   eq 'ARRAY';
+    
     foreach my $backplane (@$backplanes) {
 
         my $firmware_version = $backplane->{FIRMWARE_VERSION}->{VALUE};
