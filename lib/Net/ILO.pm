@@ -1965,32 +1965,43 @@ sub _serialize {
 
     # iLO returns multiple XML stanzas, all starting with a standard header.
     # We first need to break this glob of data into individual XML components,
-    # while ignoring the HTTP header returned by iLO 3.
+    # while ignoring the HTTP header and trailing data returned by iLO 3.
 
-    chomp( my @stanzas = grep { !/HTTP\/1.1/ } split(/<\?xml.*?\?>/, $data) );
+    # the header is everything up until the first <
+    $data =~ s/^[^<]+//;
+
+    # the trailing text is everything after the last >
+    $data =~ s/[^>]+$//g;
+
+    my @stanzas = grep { !/^<\?xml/ } grep { $_ } split( m|(<\?xml.*?\?>)|, $data);
 
     # @stanzas now contains a number of valid XML sequences.
     # All but one is unnecessary; they contain short status messages and
-    # nothing else. So, we want to parse only the longest message.
+    # nothing else. The one we want has a non-standard XML tag or is the
+    # longest XML stanza.
     #
     # NB: The same status codes are also included in the longest stanza.
 
-    my $longest = ( sort {length($b) <=> length($a)} @stanzas )[0];
-
-    if ($self->_debug > 3) {
-        print Dumper $longest;
-    }
-
-    # XML::Simple croaks if it can't parse the data properly.
-    # We want to capture any errors and propagate them on our own terms.
-
     my $xml;
+    STANZA:
+    foreach my $stanza ( sort { length($a) <=> length($b) } @stanzas ) {
+        if ( $self->_debug > 3 ) {
+            print Dumper $stanza;
+        }
 
-    eval { $xml = XMLin( $longest, NormaliseSpace => 2 ) };
+        # XML::Simple croaks if it can't parse the data properly.
+        # We want to capture any errors and propagate them on our own terms.
+        eval { $xml = XMLin( $stanza ) } or do {
+            $self->error("Error parsing response: $EVAL_ERROR");
+            return;
+        };
 
-    if ($EVAL_ERROR) {
-        $self->error("Error parsing response: $EVAL_ERROR");
-        return;
+        # if this XML stanza has a non-standard tag, it's the one we want
+        foreach my $tag ( keys %{ $xml } ) {
+            if ( $tag ne 'INFORM' && $tag ne 'VERSION' && $tag ne 'RESPONSE' ) {
+                last STANZA;
+            }
+        }
     }
 
     if ($self->_debug >= 2) {
